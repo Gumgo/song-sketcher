@@ -3,8 +3,8 @@ import math
 
 import constants
 import drawing
+import layout
 import parameter
-import stacked_layout
 import timer
 import transform
 from units import *
@@ -93,14 +93,14 @@ class Widget:
         self.x.value = {
             HorizontalPlacement.FILL: layout_position[0] + layout_size[0] * 0.5,
             HorizontalPlacement.LEFT: layout_position[0],
-            HorizontalPlacement.CENTER: layout_position[0] + layout_size[0].size * 0.5,
-            HorizontalPlacement.RIGHT: layout_position[0] + layout_size[0].size
+            HorizontalPlacement.CENTER: layout_position[0] + layout_size[0] * 0.5,
+            HorizontalPlacement.RIGHT: layout_position[0] + layout_size[0]
         }[horizontal_placement]
 
         self.y.value = {
-            VerticalPlacement.FILL: layout_position[1] + layout_size[1].size * 0.5,
-            VerticalPlacement.TOP: layout_position[1] + layout_size[1].size,
-            VerticalPlacement.MIDDLE: layout_position[1] + layout_size[1].size * 0.5,
+            VerticalPlacement.FILL: layout_position[1] + layout_size[1] * 0.5,
+            VerticalPlacement.TOP: layout_position[1] + layout_size[1],
+            VerticalPlacement.MIDDLE: layout_position[1] + layout_size[1] * 0.5,
             VerticalPlacement.BOTTOM: layout_position[1]
         }[vertical_placement]
 
@@ -298,8 +298,8 @@ class StackedLayoutWidget(ContainerWidget):
         self._children.clear()
 
     def get_desired_size(self):
-        layout = self._build_stacked_layout()
-        desired_size = layout.compute_desired_size()
+        stacked_layout = self._build_stacked_layout()
+        desired_size = stacked_layout.compute_desired_size()
         return (
             desired_size[0] if self.desired_width is None else self.desired_width,
             desired_size[1] if self.desired_height is None else self.desired_height)
@@ -307,12 +307,12 @@ class StackedLayoutWidget(ContainerWidget):
     def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
         super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
 
-        layout = self._build_stacked_layout()
-        layout_rect = stacked_layout.LayoutRect((0.0, 0.0), layout_size)
-        layout.compute_layout(layout_rect)
+        stacked_layout = self._build_stacked_layout()
+        layout_rect = layout.LayoutRect((0.0, 0.0), layout_size)
+        stacked_layout.compute_layout(layout_rect)
 
     def _build_stacked_layout(self):
-        layout = stacked_layout.StackedLayout(self._direction, self.margin)
+        stacked_layout = layout.StackedLayout(self._direction, self.margin)
         for entry in self._children:
             if entry.widget is not None:
                 def layout_child(rect, entry = entry):
@@ -321,18 +321,108 @@ class StackedLayoutWidget(ContainerWidget):
                         rect.size,
                         entry.horizontal_placement,
                         entry.vertical_placement)
-                layout.add_entry(entry.widget.get_desired_size, entry.weight, layout_child)
+                stacked_layout.add_entry(entry.widget.get_desired_size, entry.weight, layout_child)
             else:
-                layout.add_padding(entry.padding, entry.weight)
-        return layout
+                stacked_layout.add_padding(entry.padding, entry.weight)
+        return stacked_layout
 
 class HStackedLayoutWidget(StackedLayoutWidget):
     def __init__(self):
-        super().__init__(stacked_layout.Direction.HORIZONTAL)
+        super().__init__(layout.Direction.HORIZONTAL)
 
 class VStackedLayoutWidget(StackedLayoutWidget):
     def __init__(self):
-        super().__init__(stacked_layout.Direction.VERTICAL)
+        super().__init__(layout.Direction.VERTICAL)
+
+class GridLayoutWidget(ContainerWidget):
+    class _Child:
+        def __init__(self):
+            self.widget = None
+            self.row = None
+            self.column = None
+            self.horizontal_placement = None
+            self.vertical_placement = None
+
+    def __init__(self):
+        super().__init__()
+        self.desired_width = None
+        self.desired_height = None
+        self.margin = None
+        self._children = []
+        self._row_sizes = {}
+        self._column_sizes = {}
+        self._row_weights = {}
+        self._column_weights = {}
+
+    def get_children(self):
+        return (x.widget for x in self._children)
+
+    def add_child(self, row, column, child, horizontal_placement = HorizontalPlacement.FILL, vertical_placement = VerticalPlacement.FILL):
+        entry = self._Child()
+        entry.row = row
+        entry.column = column
+        entry.widget = child
+        entry.horizontal_placement = horizontal_placement
+        entry.vertical_placement = vertical_placement
+        child.parent = self
+        self._children.append(entry)
+
+    def set_row_size(self, row, size):
+        self._row_sizes[row] = size
+
+    def set_column_size(self, column, size):
+        self._column_sizes[column] = size
+
+    def set_row_weight(self, row, weight):
+        self._row_weights[row] = weight
+
+    def set_column_weight(self, column, weight):
+        self._column_weights[column] = weight
+
+    # Clear and rebuild children if they need to be modified
+    # Note that destroy() must explicitly be called on children
+    def clear_children(self):
+        for child in self._children:
+            child.parent = None
+        self._children.clear()
+        self._row_sizes.clear()
+        self._column_sizes.clear()
+        self._row_weights.clear()
+        self._column_weights.clear()
+
+    def get_desired_size(self):
+        grid_layout = self._build_grid_layout()
+        desired_size = grid_layout.compute_desired_size()
+        return (
+            desired_size[0] if self.desired_width is None else self.desired_width,
+            desired_size[1] if self.desired_height is None else self.desired_height)
+
+    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
+        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
+
+        grid_layout = self._build_grid_layout()
+        layout_rect = layout.LayoutRect((0.0, 0.0), layout_size)
+        grid_layout.compute_layout(layout_rect)
+
+    def _build_grid_layout(self):
+        grid_layout = layout.GridLayout(self.margin)
+        for entry in self._children:
+            def layout_child(rect, entry = entry):
+                entry.widget.layout_widget(
+                    rect.position,
+                    rect.size,
+                    entry.horizontal_placement,
+                    entry.vertical_placement)
+            grid_layout.add_entry(entry.row, entry.column, entry.widget.get_desired_size, layout_child)
+        for i, size in self._row_sizes.items():
+            grid_layout.set_row_size(i, size)
+        for i, size in self._column_sizes.items():
+            grid_layout.set_column_size(i, size)
+        for i, weight in self._row_weights.items():
+            grid_layout.set_row_weight(i, weight)
+        for i, weight in self._column_weights.items():
+            grid_layout.set_column_weight(i, weight)
+        return grid_layout
 
 class ScrollAreaWidget(ContainerWidget):
     def __init__(self):
@@ -341,6 +431,11 @@ class ScrollAreaWidget(ContainerWidget):
         self.desired_height = 0.0
         self.width.add_change_listener(lambda x: self._update_scroll_area())
         self.height.add_change_listener(lambda x: self._update_scroll_area())
+
+        # If we don't have a scrollbar in certain directions, this is how the child placement will behave
+        self.child_nonscrolling_horizontal_placement = HorizontalPlacement.FILL
+        self.child_nonscrolling_vertical_placement = VerticalPlacement.FILL
+
         self._child = None
         self._horizontal_scrollbar = None
         self._vertical_scrollbar = None
@@ -406,11 +501,31 @@ class ScrollAreaWidget(ContainerWidget):
     def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
         super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
         for child in self.get_children():
+            child_desired_size = child.get_desired_size()
+
+            if self._horizontal_scrollbar is None:
+                child_x = 0.0
+                child_width = self.width.value
+                horizontal_placement = self.child_nonscrolling_horizontal_placement
+            else:
+                child_x = child.x.value
+                child_width = child_desired_size[0]
+                horizontal_placement = HorizontalPlacement.LEFT
+
+            if self._vertical_scrollbar is None:
+                child_y = 0.0
+                child_height = self.height.value
+                vertical_placement = self.child_nonscrolling_vertical_placement
+            else:
+                child_y = child.y.value
+                child_height = child_desired_size[1]
+                vertical_placement = VerticalPlacement.BOTTOM
+
             child.layout_widget(
-                (child.x.value, child.y.value),
-                child.get_desired_size(),
-                HorizontalPlacement.LEFT,
-                VerticalPlacement.BOTTOM)
+                (child_x, child_y),
+                (child_width, child_height),
+                horizontal_placement,
+                vertical_placement)
 
         self._update_scroll_area()
 
@@ -432,29 +547,29 @@ class ScrollAreaWidget(ContainerWidget):
         child_height_difference = self._child.height.value - self._previous_child_height
         self._previous_child_height = self._child.height.value
 
-        # Stick the child to the top when we resize
-        self._child.y.value += height_difference - child_height_difference
-
-        visible_width = self.width.value
-        visible_height = self.height.value
-        scrollable_width = self._child.width.value
-        scrollable_height = self._child.height.value
-        child_min_x = min(visible_width - scrollable_width, 0.0)
-        child_min_y = min(visible_height - scrollable_height, 0.0)
-
-        child_x = max(self._child.x.value, child_min_x)
-
-        # Prefer scrolling to the top for y
-        child_y = self.height.value - (self._child.y.value + self._child.height.value)
-        child_y = max(child_y, child_min_y)
-        child_y = self.height.value - (child_y + self._child.height.value)
-
-        self._child.x.value = child_x
-        self._child.y.value = child_y
-
         if self._horizontal_scrollbar is not None:
+            visible_width = self.width.value
+            scrollable_width = self._child.width.value
+            child_min_x = min(visible_width - scrollable_width, 0.0)
+            child_x = max(self._child.x.value, child_min_x)
+
+            self._child.x.value = child_x
             self._update_scrollbar(self._horizontal_scrollbar)
+
         if self._vertical_scrollbar is not None:
+            # Stick the child to the top when we resize
+            self._child.y.value += height_difference - child_height_difference
+
+            visible_height = self.height.value
+            scrollable_height = self._child.height.value
+            child_min_y = min(visible_height - scrollable_height, 0.0)
+
+            # Prefer scrolling to the top for y
+            child_y = self.height.value - (self._child.y.value + self._child.height.value)
+            child_y = max(child_y, child_min_y)
+            child_y = self.height.value - (child_y + self._child.height.value)
+
+            self._child.y.value = child_y
             self._update_scrollbar(self._vertical_scrollbar)
 
     def _update_scrollbar(self, scrollbar):
@@ -479,6 +594,9 @@ class ScrollAreaWidget(ContainerWidget):
         scrollbar.set_properties(visible_ratio, position)
 
     def _on_scroll_horizontal(self):
+        if self._child is None:
+            return
+
         position = self._horizontal_scrollbar.position
         visible_size = self.width.value
         scrollable_size = self._child.width.value
@@ -486,6 +604,9 @@ class ScrollAreaWidget(ContainerWidget):
         self._child.x.value = child_min_position * position
 
     def _on_scroll_vertical(self):
+        if self._child is None:
+            return
+
         position = self._vertical_scrollbar.position
         visible_size = self.height.value
         scrollable_size = self._child.height.value
@@ -659,6 +780,10 @@ class BackgroundWidget(ContainerWidget):
         self.border_thickness = parameter.AnimatableParameter(0.0)
         self.border_color = parameter.AnimatableParameter(constants.Color.BLACK)
         self.radius = parameter.AnimatableParameter(0.0)
+        self.left_open = False
+        self.right_open = False
+        self.top_open = False
+        self.bottom_open = False
 
     def get_children(self):
         if self._child is not None:
@@ -700,7 +825,11 @@ class BackgroundWidget(ContainerWidget):
                 self.color.value,
                 border_thickness = self.border_thickness.value,
                 border_color = self.border_color.value,
-                radius = self.radius.value)
+                radius = self.radius.value,
+                left_open = self.left_open,
+                right_open = self.right_open,
+                top_open = self.top_open,
+                bottom_open = self.bottom_open)
 
         super().draw_visible(parent_transform)
 
@@ -713,6 +842,10 @@ class RectangleWidget(WidgetWithSize):
         self.border_thickness = parameter.AnimatableParameter(0.0)
         self.border_color = parameter.AnimatableParameter((0.0, 0.0, 0.0, 1.0))
         self.radius = parameter.AnimatableParameter(0.0)
+        self.left_open = False
+        self.right_open = False
+        self.top_open = False
+        self.bottom_open = False
 
     def process_event(self, event):
         return False
@@ -731,7 +864,11 @@ class RectangleWidget(WidgetWithSize):
                 self.color.value,
                 border_thickness = self.border_thickness.value,
                 border_color = self.border_color.value,
-                radius = self.radius.value)
+                radius = self.radius.value,
+                left_open = self.left_open,
+                right_open = self.right_open,
+                top_open = self.top_open,
+                bottom_open = self.bottom_open)
 
 class TextWidget(Widget):
     def __init__(self):
@@ -757,8 +894,8 @@ class TextWidget(Widget):
                 self.text,
                 self.font_name,
                 self.size.value,
-                self.x.value,
-                self.y.value,
+                0.0,
+                0.0,
                 self.horizontal_alignment,
                 self.vertical_alignment,
                 self.color.value)
@@ -1171,10 +1308,10 @@ class SpinnerWidget(WidgetWithSize):
         self.min_value = 0.0
         self.max_value = 1.0
         self.value = 0.0
-        self.font_name = "arial"
-        self.text_size = points(12.0)
         self.decimals = 1
         self.round_to_decimals = True
+        self.font_name = "arial"
+        self.text_size = points(12.0)
         self.on_value_changed_func = None
         self._pressed = False
         self._state = self._State.DEFAULT
@@ -1211,7 +1348,7 @@ class SpinnerWidget(WidgetWithSize):
                         ratio = min(max(ratio, 0.0), 1.0)
                         self.value = self.min_value + ratio * (self.max_value - self.min_value)
                         if self.round_to_decimals:
-                            multiplier = 10 ^ self.decimals
+                            multiplier = 10 ** self.decimals
                             self.value = round(self.value * multiplier) / multiplier
                             self.value = min(max(self.value, self.min_value), self.max_value)
 

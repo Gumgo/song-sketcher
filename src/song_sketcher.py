@@ -14,11 +14,17 @@ class SongSketcher:
     def __init__(self):
         pygame.init()
 
+        fullscreen = False
+
         # Do this early so OpenGL commands don't fail
-        self._display_size = (800, 600)
+        self._display_size = (1024, 768)
         self._dpi = 96 # $TODO Query this somehow
         self._quit = False
-        self._surface = pygame.display.set_mode(self._display_size, DOUBLEBUF | OPENGL)
+        if fullscreen:
+            self._surface = pygame.display.set_mode((0, 0), FULLSCREEN | DOUBLEBUF | OPENGL)
+            self._display_size = self._surface.get_size()
+        else:
+            self._surface = pygame.display.set_mode(self._display_size, DOUBLEBUF | OPENGL)
 
         units.initialize(self._dpi)
         drawing.initialize()
@@ -26,7 +32,7 @@ class SongSketcher:
         timer.initialize()
         widget_manager.initialize(self._display_size)
 
-        self._editor = editor.Editor(self._display_size)
+        self._editor = editor.Editor()
 
     def shutdown(self):
         self._editor.shutdown()

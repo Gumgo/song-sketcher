@@ -6,6 +6,7 @@ A utility to quickly record and arrange clips into a song
 	- Save as
 	- Load
 	- Settings (for mic/speakers)
+	- Quit
 
 - Right vertical menu bar (only visible when a project is loaded)
 	- Top

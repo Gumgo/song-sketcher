@@ -125,6 +125,12 @@ class _ScissorState:
         else:
             glDisable(GL_SCISSOR_TEST)
 
+def rgba(r, g, b, a = 1.0):
+    return (r, g, b, a)
+
+def rgba255(r, g, b, a = 255.0):
+    return rgba(r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+
 def drawing_begin(viewport_width_pixels, viewport_height_pixels):
     glPushMatrix()
     glViewport(0, 0, viewport_width_pixels, viewport_height_pixels)
@@ -146,17 +152,25 @@ def scissor(x1, y1, x2, y2, transform = None, merge = True):
 def scissor_clear():
     return _ScissorState(False, 0.0, 0.0, 0.0, 0.0, False)
 
-def draw_rectangle(x1, y1, x2, y2, color, border_thickness = 0.0, border_color = None, radius = 0.0):
+def draw_rectangle(
+    x1, y1, x2, y2, color,
+    border_thickness = 0.0, border_color = None, radius = 0.0,
+    left_open = False, right_open = False, top_open = False, bottom_open = False):
     shader = _resource_registry.rounded_rectangle_shader
     if border_color is None or border_thickness == 0.0:
         border_color = color
     with shader.use():
+        x_min = min(x1, x2) if not left_open else (x1 + x2) * 0.5
+        x_max = max(x1, x2) if not right_open else (x1 + x2) * 0.5
+        y_min = min(y1, y2) if not bottom_open else (y1 + y2) * 0.5
+        y_max = max(y1, y2) if not top_open else (y1 + y2) * 0.5
         glUniform4f(shader.loc("rgba"), *_get_rgba(color))
         glUniform1f(shader.loc("border_thickness"), border_thickness)
         glUniform4f(shader.loc("border_rgba"), *_get_rgba(border_color))
         glUniform1f(shader.loc("radius"), radius)
         glUniform2f(shader.loc("xy1"), x1, y1)
         glUniform2f(shader.loc("xy2"), x2, y2)
+        glUniform4f(shader.loc("xy_min_max"), x_min, y_min, x_max, y_max)
         _draw_quad(x1, y1, x2, y2)
 
 # Returns (width, ascent, descent) where descent is negative
