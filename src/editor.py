@@ -1,12 +1,12 @@
 import constants
+import dialogs.load_project_dialog
+import dialogs.new_project_dialog
+import dialogs.save_project_as_dialog
 import drawing
 import history_manager
-import load_project_dialog
 import modal_dialog
-import new_project_dialog
 import project
 import project_manager
-import save_project_as_dialog
 from units import *
 import widget
 import widget_manager
@@ -227,14 +227,14 @@ class Editor:
     def _new_project_button_clicked(self):
         def on_save_complete(success):
             if success:
-                new_project_dialog.NewProjectDialog(self._root_stack_widget, self._load_project)
+                dialogs.new_project_dialog.NewProjectDialog(self._root_stack_widget, self._load_project)
 
         self._ask_to_save_pending_changes(on_save_complete)
 
     def _load_project_button_clicked(self):
         def on_save_complete(success):
             if success:
-                load_project_dialog.LoadProjectDialog(self._root_stack_widget, self._load_project)
+                dialogs.load_project_dialog.LoadProjectDialog(self._root_stack_widget, self._load_project)
 
         self._ask_to_save_pending_changes(on_save_complete)
 
@@ -248,7 +248,7 @@ class Editor:
             self._history_manager.clear_save_state()
             self._save_project()
 
-        save_project_as_dialog.SaveProjectAsDialog(self._root_stack_widget, on_name_chosen)
+        dialogs.save_project_as_dialog.SaveProjectAsDialog(self._root_stack_widget, on_name_chosen)
 
     def _settings_button_clicked(self):
         pass # $TODO
