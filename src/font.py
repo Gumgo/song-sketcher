@@ -17,6 +17,7 @@ class Glyph:
         self.u2 = u2
         self.v2 = v2
 
+# $TODO cache info about all loaded glyphs - querying advance and kerning shows up high in the profiler report
 class Font:
     def __init__(self, filename):
         with open(filename, "r") as file:

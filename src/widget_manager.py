@@ -5,6 +5,8 @@ import timer
 import transform
 import widget_event
 
+# $TODO make a system to detect un-destroyed widgets which aren't part of any layout
+
 _LONG_PRESS_DURATION = 0.5
 
 _KEYS_FROM_PYGAME_KEYS = {
@@ -252,7 +254,7 @@ class _WidgetManager:
                 self._send_event_to_widget(key_press_event, self._focused_widget, True)
         elif pygame_event.type == pygame.KEYUP:
             key_release_event = widget_event.KeyEvent(
-                widget_event.KeyEventType.PRESS,
+                widget_event.KeyEventType.RELEASE,
                 _KEYS_FROM_PYGAME_KEYS.get(pygame_event.key, None),
                 None)
 

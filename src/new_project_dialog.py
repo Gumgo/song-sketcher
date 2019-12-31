@@ -1,5 +1,8 @@
 import drawing
 import modal_dialog
+import os
+import project
+import project_manager
 from units import *
 import widget
 
@@ -10,7 +13,10 @@ _SAMPLE_RATES = [
 ]
 
 class NewProjectDialog:
-    def __init__(self, stack_widget):
+    def __init__(self, stack_widget, on_project_created_func):
+        self._stack_widget = stack_widget
+        self._on_project_created_func = on_project_created_func
+
         layout = widget.VStackedLayoutWidget()
 
         title = widget.TextWidget()
@@ -103,5 +109,61 @@ class NewProjectDialog:
         self._destroy_func()
 
     def _create(self):
+        pm = project_manager.get()
+
+        name = pm.fixup_project_name(self._name.text)
+        if not pm.is_valid_project_name(name):
+            modal_dialog.show_simple_modal_dialog(
+                self._stack_widget,
+                "Invalid project name",
+                "Project names can only contain letters, numbers, spaces, and underscores.",
+                ["OK"],
+                None)
+            return
+
+        if pm.project_exists(name):
+            modal_dialog.show_simple_modal_dialog(
+                self._stack_widget,
+                "Project already exists",
+                "A project with the name '{}' already exists, please choose another name.".format(name),
+                ["OK"],
+                None)
+            return
+
+        try:
+            pm.create_project(name)
+        except:
+            modal_dialog.show_simple_modal_dialog(
+                self._stack_widget,
+                "Failed to create project",
+                "An error was encountered trying to create the project '{}'.".format(name),
+                ["OK"],
+                None)
+            return
+
+        new_project = project.Project()
+        new_project.name = self._name.text
+        new_project.sample_rate = _SAMPLE_RATES[self._sample_rate.selected_option_index][0]
+        new_project.beats_per_minute = self._beats_per_minute.value
+        new_project.beats_per_measure = int(self._beats_per_measure.value)
+
+        project_directory = pm.get_project_directory(name)
+        try:
+            new_project.save(project_directory / project.PROJECT_FILENAME)
+        except:
+            modal_dialog.show_simple_modal_dialog(
+                self._stack_widget,
+                "Failed to save project",
+                "An error was encountered trying to save the project '{}'.".format(name),
+                ["OK"],
+                None)
+
+            try:
+                os.rmdir(project_directory)
+            except:
+                pass
+
+            return
+
         self._destroy_func()
-        # $TODO
+        self._on_project_created_func(name)

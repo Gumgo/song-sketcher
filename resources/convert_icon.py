@@ -3,7 +3,7 @@ import os
 import pathlib
 import sys
 
-MSDFGEN_EXECUTABLE = pathlib.Path("../msdfgen-master/x64/Release/msdfgen.exe")
+MSDFGEN_EXECUTABLE = pathlib.Path("../msdfgen/x64/Release/msdfgen.exe")
 
 icon_filename = sys.argv[1]
 width = int(sys.argv[2])

@@ -1,0 +1,3 @@
+*.pyc
+/src/projects
+/src/profile_results.txt

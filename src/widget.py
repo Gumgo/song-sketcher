@@ -198,8 +198,16 @@ class StackWidget(ContainerWidget):
         child.parent = self
         self._children.append(child)
 
+    def add_child(self, child, index):
+        child.parent = self
+        self._children.insert(index, child)
+
     def pop_child(self):
         self._children.pop().parent = None
+
+    def remove_child(self, child):
+        child.parent = None
+        self._children.remove(child)
 
     def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
         assert False # This widget should only be used at root level
