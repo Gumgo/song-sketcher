@@ -1,3 +1,5 @@
+# $TODO have an option to snap to pixels, default True
+
 _dpi = None
 
 def initialize(dpi):

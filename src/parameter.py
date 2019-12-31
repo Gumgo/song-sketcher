@@ -68,6 +68,7 @@ class AnimatableParameter(Parameter):
         # Stop any transition if we're setting the value manually
         if self._active_transition is not None:
             _transition_manager.stop_transition(self._active_transition)
+            self._active_transition = None
 
     def transition(self):
         if self._active_transition is not None:

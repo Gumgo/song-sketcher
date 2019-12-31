@@ -104,3 +104,7 @@ class Project:
             track.name = loaded_track["name"]
             track.measure_clip_ids = [int(x) for x in loaded_track["measure_clip_ids"]]
             self.tracks.append(track)
+
+    def get_clip_by_id(self, clip_id):
+        # Could optimize
+        return next((x for x in self.clips if x.id == clip_id))

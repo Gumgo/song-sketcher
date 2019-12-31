@@ -168,13 +168,20 @@ class ContainerWidget(WidgetWithSize):
     def process_event(self, event):
         return False
 
+    def layout_children(self):
+        raise NotImplementedError()
+
+    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
+        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
+        self.layout_children()
+
     def get_widget_for_point(self, parent_transform, x, y):
         widget = super().get_widget_for_point(parent_transform, x, y)
         if widget is None:
             return None
 
         transform = parent_transform * self.get_transform()
-        for child in self.get_children():
+        for child in reversed([x for x in self.get_children()]): # Iterate in reverse to respect drawing order
             child_widget = child.get_widget_for_point(transform, x, y)
             if child_widget is not None:
                 return child_widget
@@ -251,8 +258,7 @@ class AbsoluteLayoutWidget(ContainerWidget):
     def remove_child_at_index(self, index):
         self._children.pop(index).parent = None
 
-    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
-        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
+    def layout_children(self):
         for child in self.get_children():
             child.layout_widget(
                 (child.x.value, child.y.value),
@@ -312,11 +318,9 @@ class StackedLayoutWidget(ContainerWidget):
             desired_size[0] if self.desired_width is None else self.desired_width,
             desired_size[1] if self.desired_height is None else self.desired_height)
 
-    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
-        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
-
+    def layout_children(self):
         stacked_layout = self._build_stacked_layout()
-        layout_rect = layout.LayoutRect((0.0, 0.0), layout_size)
+        layout_rect = layout.LayoutRect((0.0, 0.0), (self.width.value, self.height.value))
         stacked_layout.compute_layout(layout_rect)
 
     def _build_stacked_layout(self):
@@ -405,11 +409,9 @@ class GridLayoutWidget(ContainerWidget):
             desired_size[0] if self.desired_width is None else self.desired_width,
             desired_size[1] if self.desired_height is None else self.desired_height)
 
-    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
-        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
-
+    def layout_children(self):
         grid_layout = self._build_grid_layout()
-        layout_rect = layout.LayoutRect((0.0, 0.0), layout_size)
+        layout_rect = layout.LayoutRect((0.0, 0.0), (self.width.value, self.height.value))
         grid_layout.compute_layout(layout_rect)
 
     def _build_grid_layout(self):
@@ -506,8 +508,7 @@ class ScrollAreaWidget(ContainerWidget):
     def get_desired_size(self):
         return (self.desired_width, self.desired_height)
 
-    def layout_widget(self, layout_position, layout_size, horizontal_placement, vertical_placement):
-        super().layout_widget(layout_position, layout_size, horizontal_placement, vertical_placement)
+    def layout_children(self):
         for child in self.get_children():
             child_desired_size = child.get_desired_size()
 
@@ -623,8 +624,6 @@ class ScrollAreaWidget(ContainerWidget):
         # Prefer scrolling to the top for y
         child_y = child_min_position * (1.0 - position)
         self._child.y.value = self.height.value - (child_y + self._child.height.value)
-
-        self._child.y.value = child_min_position * position
 
 class ScrollbarOrientation(Enum):
     HORIZONTAL = 0

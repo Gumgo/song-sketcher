@@ -34,8 +34,8 @@ class HistoryManager:
     def add_entry(self, entry):
         assert not self._entry_active
 
-        for entry in self._redo_stack:
-            entry.destroy()
+        for redo_entry in self._redo_stack:
+            redo_entry.destroy()
         self._redo_stack.clear()
 
         # If our last saved change index is in the redo stack, we'll never be able to reach it again

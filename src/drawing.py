@@ -45,6 +45,9 @@ class _ResourceRegistry:
 
         add_icon("arrow_up", icon.Icon("icons/arrow_up.json"))
         add_icon("arrow_down", icon.Icon("icons/arrow_down.json"))
+        add_icon("plus", icon.Icon("icons/plus.json"))
+        add_icon("undo", icon.Icon("icons/undo.json"))
+        add_icon("redo", icon.Icon("icons/redo.json"))
         add_icon("metronome", icon.Icon("icons/metronome.json"))
 
     def shutdown(self):
