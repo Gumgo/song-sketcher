@@ -8,6 +8,7 @@ import widget_event
 # $TODO make a system to detect un-destroyed widgets which aren't part of any layout
 
 _LONG_PRESS_DURATION = 0.5
+_DOUBLE_CLICK_DURATION = 0.5
 
 _KEYS_FROM_PYGAME_KEYS = {
     pygame.K_BACKSPACE: widget_event.KeyCode.BACKSPACE,
@@ -170,6 +171,9 @@ class _WidgetManager:
         self._captured_widget = None    # The currently captured widget - all events will route to it
         self._focused_widget = None     # The widget with keyboard focus
         self._long_press_timers = {}    # Maps widget to timer
+        self._double_click_widget = None
+        self._double_click_button = None
+        self._double_click_timer = None
         self._overlay_funcs = []
 
     @property
@@ -197,6 +201,8 @@ class _WidgetManager:
         self.release_captured_widget(widget)
         self.release_focused_widget(widget)
         self._cancel_long_press_timer(widget)
+        if widget is self._double_click_widget:
+            self._cancel_double_click_timer()
 
     # Used to force re-evaluation of whether the mouse is inside or outside widgets
     def invalidate_widget_placements(self):
@@ -271,19 +277,40 @@ class _WidgetManager:
                 self._last_mouse_position[1])
             self._send_event_to_captured_widget_and_other(mouse_move_event, self._widget_under_mouse, False)
         elif pygame_event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_press_event = widget_event.MouseEvent(
-                widget_event.MouseEventType.PRESS,
-                self._get_mouse_button_from_pygame_event(pygame_event),
-                self._last_mouse_position[0],
-                self._last_mouse_position[1])
-            widget = self._send_event_to_captured_widget_or_other(mouse_press_event, self._widget_under_mouse, True)
-            if widget is not None:
-                self._cancel_long_press_timer(widget)
-                self._long_press_timers[widget] = timer.Timer(
-                    lambda: self._send_long_press_event(widget, mouse_press_event.button),
-                    _LONG_PRESS_DURATION)
+            button = self._get_mouse_button_from_pygame_event(pygame_event)
+
+            if self._double_click_button is button and self._is_a_ancestor_of_b(self._double_click_widget, self._widget_under_mouse):
+                double_click_widget = self._double_click_widget
+                self._cancel_double_click_timer()
+
+                # Note: double-click doesn't work with the captured widget, don't rely on capturing for double clicking
+                double_click_event = widget_event.MouseEvent(
+                    widget_event.MouseEventType.DOUBLE_CLICK,
+                    button,
+                    self._last_mouse_position[0],
+                    self._last_mouse_position[1])
+                self._send_event_to_widget(double_click_event, double_click_widget, False)
+            else:
+                self._cancel_double_click_timer()
+
+                mouse_press_event = widget_event.MouseEvent(
+                    widget_event.MouseEventType.PRESS,
+                    button,
+                    self._last_mouse_position[0],
+                    self._last_mouse_position[1])
+                widget = self._send_event_to_captured_widget_or_other(mouse_press_event, self._widget_under_mouse, True)
+
+                if widget is not None:
+                    self._cancel_long_press_timer(widget)
+                    self._long_press_timers[widget] = timer.Timer(
+                        lambda: self._send_long_press_event(widget, mouse_press_event.button),
+                        _LONG_PRESS_DURATION)
+                    self._double_click_button = button
+                    self._double_click_widget = widget
+                    self._double_click_timer = timer.Timer(self._cancel_double_click_timer, _DOUBLE_CLICK_DURATION)
         elif pygame_event.type == pygame.MOUSEBUTTONUP:
             self._cancel_all_long_press_timers()
+
             mouse_release_event = widget_event.MouseEvent(
                 widget_event.MouseEventType.RELEASE,
                 self._get_mouse_button_from_pygame_event(pygame_event),
@@ -335,6 +362,14 @@ class _WidgetManager:
             return self._send_event_to_widget(event, other_widget, propagate_to_parent)
         return None
 
+    def _is_a_ancestor_of_b(self, widget_a, widget_b):
+        current_ancestor = widget_b
+        while current_ancestor is not None:
+            if current_ancestor is widget_a:
+                return True
+            current_ancestor = current_ancestor.parent
+        return False
+
     def _get_mouse_button_from_pygame_event(self, pygame_event):
         return {
             1: widget_event.MouseButton.LEFT,
@@ -353,6 +388,13 @@ class _WidgetManager:
         for timer in self._long_press_timers.values():
             timer.cancel()
         self._long_press_timers.clear()
+
+    def _cancel_double_click_timer(self):
+        if self._double_click_widget is not None:
+            self._double_click_timer.cancel()
+            self._double_click_widget = None
+            self._double_click_button = None
+            self._double_click_timer = None
 
     def _send_long_press_event(self, widget, button):
         self._long_press_timers.pop(widget)

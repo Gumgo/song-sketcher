@@ -13,7 +13,9 @@ class Entry:
             self.destroy_func()
 
 class HistoryManager:
-    def __init__(self):
+    def __init__(self, on_state_change_func):
+        self._on_state_change_func = on_state_change_func
+
         # This tracks the number of save state changing actions that have been performed.
         # Actions which cause save state changes increment/decrement this on do/redo and undo, respectively.
         # We can know whether we have unsaved changes by comparing the current change index with the last saved change index.
@@ -46,14 +48,18 @@ class HistoryManager:
         if entry.changes_save_state:
             self._current_change_index += 1
 
+        self._on_state_change_func()
+
     def has_unsaved_changes(self):
         return self._saved_change_index != self._current_change_index
 
     def save(self):
         self._saved_change_index = self._current_change_index
+        self._on_state_change_func()
 
     def clear_save_state(self):
         self._saved_change_index = None
+        self._on_state_change_func()
 
     def can_undo(self):
         return len(self._undo_stack) > 0
@@ -72,6 +78,7 @@ class HistoryManager:
                 self._current_change_index -= 1
         finally:
             self._entry_active = False
+        self._on_state_change_func()
 
     def redo(self):
         try:
@@ -84,3 +91,4 @@ class HistoryManager:
                 self._current_change_index += 1
         finally:
             self._entry_active = False
+        self._on_state_change_func()

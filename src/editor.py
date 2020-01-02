@@ -51,6 +51,8 @@ class Editor:
         # This will set up the appropriate "no project loaded" layout
         self._close_project()
 
+        self._update_buttons_enabled(False)
+
     def shutdown(self):
         pass
 
@@ -130,15 +132,15 @@ class Editor:
         timeline_library_divider.left_open = True
         timeline_library_divider.right_open = True
 
-        self._library = library.Library(self._project, self._history_manager)
+        self._library = library.Library(self._root_stack_widget, self._project, self._history_manager)
         timeline_library_layout.add_child(self._library.root_layout, weight = 1.0)
 
-        project_widgets.edit_menu_widget = self._build_edit_menu_widget()
-        project_widgets.root_layout.add_child(project_widgets.edit_menu_widget)
+        edit_menu_widget = self._build_edit_menu_widget(project_widgets)
+        project_widgets.root_layout.add_child(edit_menu_widget)
 
         return project_widgets
 
-    def _build_edit_menu_widget(self):
+    def _build_edit_menu_widget(self, project_widgets):
         # $TODO enable/disable buttons based on whether a project is open, also disable/enable the save button based on pending changes
         background = widget.BackgroundWidget()
         background.color.value = self._constants.MENU_BACKGROUND_COLOR
@@ -149,35 +151,35 @@ class Editor:
         background.set_child(layout)
         layout.margin = self._constants.MENU_PADDING
 
-        self._play_pause_button = widget.IconButtonWidget()
-        layout.add_child(self._play_pause_button)
-        self._play_pause_button.icon_name = "metronome" # $TODO
+        project_widgets.play_pause_button = widget.IconButtonWidget()
+        layout.add_child(project_widgets.play_pause_button)
+        project_widgets.play_pause_button.icon_name = "metronome" # $TODO
 
         layout.add_padding(self._constants.MENU_PADDING)
 
-        self._stop_button = widget.IconButtonWidget()
-        layout.add_child(self._stop_button)
-        self._stop_button.icon_name = "metronome" # $TODO
+        project_widgets.stop_button = widget.IconButtonWidget()
+        layout.add_child(project_widgets.stop_button)
+        project_widgets.stop_button.icon_name = "metronome" # $TODO
 
         layout.add_padding(self._constants.MENU_PADDING)
 
-        self._metronome_button = widget.IconButtonWidget()
-        layout.add_child(self._metronome_button)
-        self._metronome_button.icon_name = "metronome" # $TODO
+        project_widgets.metronome_button = widget.IconButtonWidget()
+        layout.add_child(project_widgets.metronome_button)
+        project_widgets.metronome_button.icon_name = "metronome" # $TODO
 
         layout.add_padding(0.0, weight = 1.0)
 
-        self._undo_button = widget.IconButtonWidget()
-        layout.add_child(self._undo_button)
-        self._undo_button.icon_name = "undo"
-        self._undo_button.action_func = self._undo
+        project_widgets.undo_button = widget.IconButtonWidget()
+        layout.add_child(project_widgets.undo_button)
+        project_widgets.undo_button.icon_name = "undo"
+        project_widgets.undo_button.action_func = self._undo
 
         layout.add_padding(self._constants.MENU_PADDING)
 
-        self._redo_button = widget.IconButtonWidget()
-        layout.add_child(self._redo_button)
-        self._redo_button.icon_name = "redo"
-        self._redo_button.action_func = self._redo
+        project_widgets.redo_button = widget.IconButtonWidget()
+        layout.add_child(project_widgets.redo_button)
+        project_widgets.redo_button.icon_name = "redo"
+        project_widgets.redo_button.action_func = self._redo
 
         return background
 
@@ -241,6 +243,8 @@ class Editor:
             widget.HorizontalPlacement.FILL,
             widget.VerticalPlacement.FILL)
 
+        self._update_buttons_enabled()
+
     def _load_project(self, project_name):
         pm = project_manager.get()
         new_project = project.Project()
@@ -261,7 +265,7 @@ class Editor:
         if self._history_manager is not None:
             self._history_manager.destroy()
             self._history_manager = None
-        self._history_manager = history_manager.HistoryManager()
+        self._history_manager = history_manager.HistoryManager(self._update_buttons_enabled)
 
         self._root_layout.clear_children()
         if self._project_widgets is not None:
@@ -278,6 +282,8 @@ class Editor:
             widget_manager.get().display_size,
             widget.HorizontalPlacement.FILL,
             widget.VerticalPlacement.FILL)
+
+        self._update_buttons_enabled()
 
         return True
 
@@ -327,3 +333,14 @@ class Editor:
     def _redo(self):
         if self._history_manager.can_redo():
             self._history_manager.redo()
+
+    def _update_buttons_enabled(self, animate = True):
+        can_save_as = self._project is not None
+        can_save = can_save_as and self._history_manager.has_unsaved_changes()
+        self._save_project_button.set_enabled(can_save, animate)
+        self._save_project_as_button.set_enabled(can_save_as, animate)
+
+        if self._project is not None:
+            # $TODO disable all if playing
+            self._project_widgets.undo_button.set_enabled(self._history_manager.can_undo(), animate)
+            self._project_widgets.redo_button.set_enabled(self._history_manager.can_redo(), animate)

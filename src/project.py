@@ -2,6 +2,22 @@ import json
 
 PROJECT_FILENAME = "project.json"
 
+# These are chosen using HSV values of (x, 240, 140) where x ranges from 0 to 360
+CATEGORY_COLORS = [
+    (255, 43, 43),
+    (255, 175, 43),
+    (255, 255, 43),
+    (149, 255, 43),
+    (43, 255, 43),
+    (43, 255, 149),
+    (43, 255, 255),
+    (43, 149, 255),
+    (43, 43, 255),
+    (149, 43, 255),
+    (255, 43, 255),
+    (255, 43, 149)
+]
+
 class Clip:
     def __init__(self):
         self.id = None                  # Unique identifier for the clip
@@ -31,6 +47,8 @@ class Project:
         self.clips = []
         self.clip_categories = []
         self.tracks = []
+
+        self._next_clip_id = None
 
     def save(self, path):
         project = {
@@ -104,6 +122,13 @@ class Project:
             track.name = loaded_track["name"]
             track.measure_clip_ids = [int(x) for x in loaded_track["measure_clip_ids"]]
             self.tracks.append(track)
+
+    def generate_clip_id(self):
+        if self._next_clip_id is None:
+            self._next_clip_id = max((x.id for x in self.clips), default = -1) + 1
+        clip_id = self._next_clip_id
+        self._next_clip_id += 1
+        return clip_id
 
     def get_clip_by_id(self, clip_id):
         # Could optimize

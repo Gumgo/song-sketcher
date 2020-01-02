@@ -9,6 +9,7 @@ class MouseEventType(Enum):
     PRESS = 1
     LONG_PRESS = 2
     RELEASE = 3
+    DOUBLE_CLICK = 4
     # SCROLL
 
 class MouseButton(Enum):

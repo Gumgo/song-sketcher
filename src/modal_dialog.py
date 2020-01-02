@@ -134,6 +134,8 @@ def show_simple_modal_dialog(stack_widget, title, text, buttons, on_closed_func)
     context = Context()
     for i, button_text in enumerate(buttons):
         button_widget = widget.TextButtonWidget()
+        if i > 0:
+            buttons_layout.add_padding(points(4.0))
         buttons_layout.add_child(button_widget)
         button_widget.text = button_text
         button_widget.action_func = lambda i = i: context.button_pressed(i)

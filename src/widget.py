@@ -26,7 +26,6 @@ class VerticalPlacement(Enum):
 class Widget:
     def __init__(self):
         self._visible = True
-        self._enabled = True
         self._parent = None
 
         self.x = parameter.AnimatableParameter(0.0)
@@ -913,6 +912,7 @@ class ButtonWidget(WidgetWithSize):
         HOVER = 1
         PRESSED = 2
         PRESSED_HOVER = 3
+        DISABLED = 4
 
     def __init__(self):
         super().__init__()
@@ -922,6 +922,8 @@ class ButtonWidget(WidgetWithSize):
         self._color_default = None
         self.color_hover = None
         self.color_pressed = None
+        self.color_disabled = None
+        self._enabled = True
         self._pressed = False
         self._state = self._State.DEFAULT
         self._color = parameter.AnimatableParameter(constants.Color.WHITE)
@@ -935,14 +937,28 @@ class ButtonWidget(WidgetWithSize):
         self._color_default = color_default
         self._color.value = color_default
 
+    @property
+    def enabled(self):
+        return self._enabled
+
+    def set_enabled(self, enabled, animate = True):
+        if enabled != self._enabled:
+            self._enabled = enabled
+            if not enabled:
+                self._pressed = False
+                self.release_capture()
+                self.release_focus()
+            self._update_color_state(animate)
+
     # Returns whether the event was consumed
     def process_event(self, event):
         result = False
         if isinstance(event, widget_event.MouseEvent) and event.button is widget_event.MouseButton.LEFT:
             if event.event_type is widget_event.MouseEventType.PRESS:
-                self._pressed = True
-                self.capture()
-                self.focus()
+                if self.enabled:
+                    self._pressed = True
+                    self.capture()
+                    self.focus()
                 result = True
             elif event.event_type is widget_event.MouseEventType.RELEASE:
                 self.release_capture()
@@ -958,8 +974,10 @@ class ButtonWidget(WidgetWithSize):
             self._update_color_state()
         return result
 
-    def _update_color_state(self):
-        if self._pressed:
+    def _update_color_state(self, animate = True):
+        if not self._enabled:
+            new_state = self._State.DISABLED
+        elif self._pressed:
             new_state = self._State.PRESSED_HOVER if self.is_under_mouse else self._State.PRESSED
         else:
             new_state = self._State.HOVER if self.is_under_mouse else self._State.DEFAULT
@@ -970,9 +988,13 @@ class ButtonWidget(WidgetWithSize):
                 self._State.DEFAULT: self.color_default,
                 self._State.HOVER: self.color_hover,
                 self._State.PRESSED: self.color_default,
-                self._State.PRESSED_HOVER: self.color_pressed
+                self._State.PRESSED_HOVER: self.color_pressed,
+                self._State.DISABLED: self.color_disabled
             }[self._state]
-            self._color.transition().target(color).duration(0.125).ease_out()
+            if animate:
+                self._color.transition().target(color).duration(0.125).ease_out()
+            else:
+                self._color.value = color
 
 class TextButtonWidget(ButtonWidget):
     def __init__(self):
@@ -982,6 +1004,7 @@ class TextButtonWidget(ButtonWidget):
         self.color_default = (0.5, 0.5, 0.5, 1.0)
         self.color_hover = (0.75, 0.75, 0.75, 1.0)
         self.color_pressed = (0.25, 0.25, 0.25, 1.0)
+        self.color_disabled = (0.25, 0.25, 0.25, 1.0)
         self.text = ""
         self.font_name = "arial"
         self.text_size = points(12.0)
@@ -1024,6 +1047,7 @@ class IconButtonWidget(ButtonWidget):
         self.color_default = (0.5, 0.5, 0.5, 1.0)
         self.color_hover = (0.75, 0.75, 0.75, 1.0)
         self.color_pressed = (0.25, 0.25, 0.25, 1.0)
+        self.color_disabled = (0.25, 0.25, 0.25, 1.0)
         self.icon_name = None
 
     def get_desired_size(self):
@@ -1430,6 +1454,7 @@ class SpinnerWidget(WidgetWithSize):
 
 class InputWidget(WidgetWithSize):
     _COLOR = (0.9, 0.9, 0.9, 1.0)
+    _COLOR_DISABLED = (0.45, 0.45, 0.45, 1.0)
     _CURSOR_PHASE_DURATION = 2.0 / 3.0
 
     def __init__(self):
@@ -1440,6 +1465,8 @@ class InputWidget(WidgetWithSize):
         self.font_name = "arial"
         self.text_size = points(12.0)
         self.text_changed_func = None
+        self._color = parameter.AnimatableParameter(self._COLOR)
+        self._enabled = True
         self._cursor_phase = 0.0
         self._cursor_updater = None
 
@@ -1447,6 +1474,18 @@ class InputWidget(WidgetWithSize):
         if self._cursor_updater is not None:
             self._cursor_updater.cancel()
         super().destroy()
+
+    @property
+    def enabled(self):
+        return self._enabled
+
+    def set_enabled(self, enabled, animate = True):
+        if enabled != self._enabled:
+            self._enabled = enabled
+            if not enabled:
+                self.release_capture()
+                self.release_focus()
+            self._update_color_state(animate)
 
     def process_event(self, event):
         result = False
@@ -1495,7 +1534,7 @@ class InputWidget(WidgetWithSize):
                 0.0,
                 self.width.value,
                 self.height.value,
-                self._COLOR,
+                self._color.value,
                 border_thickness = points(1.0),
                 border_color = constants.Color.BLACK,
                 radius = points(8.0))
@@ -1528,3 +1567,10 @@ class InputWidget(WidgetWithSize):
                     cursor_position + 1.0,
                     (self.height.value + ascent) * 0.5,
                     (0.0, 0.0, 0.0, alpha))
+
+    def _update_color_state(self, animated = True):
+        color = self._COLOR if self._enabled else self._COLOR_DISABLED
+        if animated:
+            self.color.transition().target(color).duration(0.125).ease_out()
+        else:
+            self.color.value = color
