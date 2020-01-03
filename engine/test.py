@@ -34,4 +34,14 @@ print(engine.get_clip_sample_count(new_clip_id))
 print(engine.get_clip_samples(new_clip_id, 128))
 print(len(engine.get_clip_samples(new_clip_id, 0)))
 
+engine.playback_builder_begin()
+engine.playback_builder_add_clip(new_clip_id, 0, engine.get_clip_sample_count(new_clip_id), -44100)
+engine.playback_builder_add_clip(new_clip_id, 0, engine.get_clip_sample_count(new_clip_id), 0)
+engine.playback_builder_add_clip(new_clip_id, 0, engine.get_clip_sample_count(new_clip_id), 44100)
+engine.playback_builder_finalize()
+
+engine.start_playback(engine.get_default_output_device_index(), 1024, 0)
+time.sleep(3.0)
+engine.stop_playback()
+
 print(engine.shutdown())

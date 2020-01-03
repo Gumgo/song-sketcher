@@ -2,6 +2,7 @@ import constants
 import dialogs.edit_category_dialog
 import dialogs.edit_clip_dialog
 import drawing
+import engine
 import history_manager
 import project
 from units import *
@@ -232,17 +233,25 @@ class Library:
                 self._layout_widgets()
                 # $TODO update tracks
 
+            def destroy(was_undone):
+                if not was_undone:
+                    clip_ids = set(category.clip_ids)
+                    deleted_clips = [x for x in old_clips if x.id in clip_ids]
+                    for clip in deleted_clips:
+                        engine.delete_clip(clip.engine_clip)
+
             do()
 
             entry = history_manager.Entry()
             entry.undo_func = undo
             entry.redo_func = do
+            entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
         dialogs.edit_category_dialog.EditCategoryDialog(self._root_stack_widget, category, on_accept, on_delete)
 
     def _add_clip(self, category):
-        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count):
+        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
             new_clip = project.Clip()
             new_clip.id = self._project.generate_clip_id()
             new_clip.name = name
@@ -250,6 +259,8 @@ class Library:
             new_clip.start_sample_index = start_sample_index
             new_clip.end_sample_index = end_sample_index
             new_clip.measure_count = measure_count
+            new_clip.engine_clip = engine_clip
+            new_clip.category = category
 
             def do():
                 self._project.clips.append(new_clip)
@@ -261,19 +272,25 @@ class Library:
                 category.clip_ids.remove(new_clip.id)
                 self._layout_widgets()
 
+            def destroy(was_undone):
+                if was_undone:
+                    engine.delete_clip(new_clip.engine_clip)
+
             do()
 
             entry = history_manager.Entry()
             entry.undo_func = undo
             entry.redo_func = do
+            entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, None, on_accept, None)
+        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, None, on_accept, None)
 
     def _edit_clip(self, clip):
-        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count):
+        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
             assert clip.sample_count == sample_count # Should not change when editing
             assert clip.measure_count == measure_count # Should not change when editing
+            assert engine_clip is None # Should not change when editing (currently?)
 
             if (name == clip.name
                 and start_sample_index == clip.start_sample_index
@@ -322,14 +339,19 @@ class Library:
                 self._layout_widgets()
                 # $TODO update tracks
 
+            def destroy(was_undone):
+                if not was_undone:
+                    engine.delete_clip(clip.engine_clip)
+
             do()
 
             entry = history_manager.Entry()
             entry.undo_func = undo
             entry.redo_func = do
+            entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, clip, on_accept, on_delete)
+        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, clip, on_accept, on_delete)
 
 class AddWidget(widget.AbsoluteLayoutWidget):
     def __init__(self, add_func):
@@ -373,7 +395,6 @@ class CategoryWidget(widget.AbsoluteLayoutWidget):
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 
-        # $TODO clip text
         self.name = widget.TextWidget()
         self.name.text = self.category.name
         self.name.x.value = self.desired_width * 0.5
@@ -411,7 +432,6 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 
-        # $TODO clip text
         self.name = widget.TextWidget()
         self.name.text = self.clip.name
         self.name.x.value = self.desired_width * 0.5

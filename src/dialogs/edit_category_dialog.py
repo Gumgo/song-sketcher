@@ -95,7 +95,7 @@ class EditCategoryDialog:
             return
 
         self._destroy_func()
-        self._on_accept_func(self._name.text, self._color_picker.selected_color)
+        self._on_accept_func(name, self._color_picker.selected_color)
 
     def _delete(self):
         self._destroy_func()

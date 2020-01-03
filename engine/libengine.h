@@ -11,7 +11,7 @@ PyObject *shutdown(PyObject *self);
 // Query the number of input devices
 PyObject *get_input_device_count(PyObject *self);
 
-// Returns the default input device index, or -1 if a default doesn't exist
+// Returns the default input device index, or None if a default doesn't exist
 // Returns: default_device_index
 PyObject *get_default_input_device_index(PyObject *self);
 
@@ -22,7 +22,7 @@ PyObject *get_input_device_name(PyObject *self, PyObject *args);
 // Query the number of output devices
 PyObject *get_output_device_count(PyObject *self);
 
-// Returns the default output device index, or -1 if a default doesn't exist
+// Returns the default output device index, or None if a default doesn't exist
 // Returns: default_device_index
 PyObject *get_default_output_device_index(PyObject *self);
 

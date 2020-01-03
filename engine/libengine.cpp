@@ -223,7 +223,11 @@ PyObject *get_input_device_count(PyObject *self) {
 }
 
 PyObject *get_default_input_device_index(PyObject *self) {
-    return PyLong_FromLong(g_engine_state.m_default_input_device_index);
+    if (g_engine_state.m_default_input_device_index >= 0) {
+        return PyLong_FromLong(g_engine_state.m_default_input_device_index);
+    } else {
+        Py_RETURN_NONE;
+    }
 }
 
 PyObject *get_input_device_name(PyObject *self, PyObject *args) {
@@ -245,7 +249,11 @@ PyObject *get_output_device_count(PyObject *self) {
 }
 
 PyObject *get_default_output_device_index(PyObject *self) {
-    return PyLong_FromLong(g_engine_state.m_default_output_device_index);
+    if (g_engine_state.m_default_output_device_index >= 0) {
+        return PyLong_FromLong(g_engine_state.m_default_output_device_index);
+    } else {
+        Py_RETURN_NONE;
+    }
 }
 
 PyObject *get_output_device_name(PyObject *self, PyObject *args) {
@@ -776,6 +784,9 @@ PyObject *start_playback(PyObject *self, PyObject *args) {
             assert(playback_event.m_event == e_playback_event::k_stop_clip);
             deactivate_playback_clip(playback_event.m_playback_clip_index);
         }
+
+        // Advance to the next event
+        g_engine_state.m_next_playback_event_index++;
     }
 
     g_engine_state.m_playback_sample_index = sample_index;
@@ -839,8 +850,8 @@ static void activate_playback_clip(size_t playback_clip_index) {
     assert(playback_clip.m_next_active_playback_clip == nullptr);
 
     if (g_engine_state.m_first_active_playback_clip != nullptr) {
-        g_engine_state.m_first_active_playback_clip->m_next_active_playback_clip = &playback_clip;
-        playback_clip.m_prev_active_playback_clip = g_engine_state.m_first_active_playback_clip;
+        g_engine_state.m_first_active_playback_clip->m_prev_active_playback_clip = &playback_clip;
+        playback_clip.m_next_active_playback_clip = g_engine_state.m_first_active_playback_clip;
     }
 
     g_engine_state.m_first_active_playback_clip = &playback_clip;
@@ -888,11 +899,13 @@ int recording_stream_main(
             assert(usage == 0); // A new recording buffer should have no usage
         }
 
-        size_t copy_amount = std::min(static_cast<size_t>(frame_count), capacity - usage);
-        recording_buffer->m_usage += copy_amount;
+        size_t copy_amount = std::min(frame_count - frame_index, capacity - usage);
         for (size_t i = 0; i < copy_amount; ++i) {
             recording_buffer->m_samples[usage++] = static_cast<const float *>(input)[frame_index++];
         }
+
+        // Don't increment usage until after we've copied data to make sure it's only exposed after it's valid
+        recording_buffer->m_usage += copy_amount;
     }
 
     // Update the current recording buffer for the next callback

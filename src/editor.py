@@ -2,6 +2,7 @@ import constants
 import dialogs.load_project_dialog
 import dialogs.new_project_dialog
 import dialogs.save_project_as_dialog
+import dialogs.settings_dialog
 import drawing
 import history_manager
 import library
@@ -121,7 +122,8 @@ class Editor:
         timeline_library_layout = widget.VStackedLayoutWidget()
         project_widgets.root_layout.add_child(timeline_library_layout, weight = 1.0)
 
-        timeline_library_layout.add_padding(0.0, weight = 1.0)
+        self._timeline = timeline.Timeline(self._root_stack_widget, self._project, self._history_manager)
+        timeline_library_layout.add_child(self._timeline.root_layout, weight = 1.0)
 
         timeline_library_divider = widget.RectangleWidget()
         timeline_library_layout.add_child(timeline_library_divider)
@@ -210,7 +212,7 @@ class Editor:
         dialogs.save_project_as_dialog.SaveProjectAsDialog(self._root_stack_widget, on_name_chosen)
 
     def _settings_button_clicked(self):
-        pass # $TODO
+        dialogs.settings_dialog.SettingsDialog(self._root_stack_widget)
 
     def _quit_button_clicked(self):
         def on_save_complete(success):

@@ -5,8 +5,10 @@ from pygame.locals import *
 
 import drawing
 import editor
+import engine
 import parameter
 import project_manager
+import settings
 import timer
 import units
 import widget_manager
@@ -33,12 +35,16 @@ class SongSketcher:
         timer.initialize()
         widget_manager.initialize(self._display_size)
         project_manager.initialize()
+        engine.initialize()
+        settings.initialize()
 
         self._editor = editor.Editor()
 
     def shutdown(self):
         self._editor.shutdown()
 
+        settings.shutdown()
+        engine.shutdown()
         project_manager.shutdown()
         widget_manager.shutdown()
         timer.shutdown()

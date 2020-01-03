@@ -1,4 +1,8 @@
 import json
+import os
+import pathlib
+
+import engine
 
 PROJECT_FILENAME = "project.json"
 
@@ -26,6 +30,9 @@ class Clip:
         self.start_sample_index = 0     # The first sample we should start playing
         self.end_sample_index = 0       # The sample after the last sample played
         self.measure_count = 0          # The number of measures the clip spans NOT including the intro and outro
+        self.engine_clip = None         # Audio clip data stored in the engine
+
+        self.category = None            # Used for quick access to the category
 
 class ClipCategory:
     def __init__(self):
@@ -89,11 +96,18 @@ class Project:
         with open(str(path), "w") as file:
             json.dump(project, file, indent = 4)
 
+        folder = pathlib.Path(os.path.dirname(path))
+        for clip in self.clips:
+            engine.save_clip(clip.id, str(folder / "{}.wav".format(clip.id)))
+
     def load(self, path):
+        folder = pathlib.Path(os.path.dirname(path))
         with open(str(path), "r") as file:
             project = json.load(file)
 
         self.sample_rate = int(project["sample_rate"])
+        engine.set_sample_rate(self.sample_rate)
+
         self.beats_per_minute = project["beats_per_minutes"]
         self.beats_per_measure = int(project["beats_per_measure"])
 
@@ -106,6 +120,7 @@ class Project:
             clip.start_sample_index = int(loaded_clip["start_sample_index"])
             clip.end_sample_index = int(loaded_clip["end_sample_index"])
             clip.measure_count = int(loaded_clip["measure_count"])
+            clip.engine_clip = engine.load_clip(str(folder / "{}.wav".format(clip.id)))
             self.clips.append(clip)
 
         self.clip_categories = []
@@ -114,6 +129,8 @@ class Project:
             clip_category.name = loaded_clip_category["name"]
             clip_category.color = tuple(int(x) for x in loaded_clip_category["color"])
             clip_category.clip_ids = [int(x) for x in loaded_clip_category["clip_ids"]]
+            for clip_id in clip_category.clip_ids:
+                self.get_clip_by_id(clip_id).category = clip_category
             self.clip_categories.append(clip_category)
 
         self.tracks = []

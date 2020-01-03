@@ -40,6 +40,7 @@ class _ResourceRegistry:
         self.font_shader = add_shader(shader.Shader("shaders/font.glsl"))
         self.icon_shader = add_shader(shader.Shader("shaders/icon.glsl"))
         self.spinner_shader = add_shader(shader.Shader("shaders/spinner.glsl"))
+        self.waveform_shader = add_shader(shader.Shader("shaders/waveform.glsl"))
 
         add_font("arial", font.Font("fonts/arial.json"))
 
@@ -275,6 +276,25 @@ def draw_spinner(x, y, color_inner, color_outer, color_outer_background, radius_
         glUniform2f(shader.loc("xy_center"), x, y)
         s = radius_outer
         _draw_quad(x - s, y - s, x + s, y + s)
+
+def draw_waveform(
+    x1, y1, x2, y2, waveform_texture, background_color, waveform_color,
+    border_thickness = 0.0, border_color = None):
+    shader = _resource_registry.waveform_shader
+    if border_color is None or border_thickness == 0.0:
+        border_color = color
+    with shader.use():
+        glEnable(GL_TEXTURE_1D)
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_1D, waveform_texture)
+        glUniform1i(shader.loc("waveform_texture"), 0)
+        glUniform4f(shader.loc("background_rgba"), *_get_rgba(background_color))
+        glUniform4f(shader.loc("waveform_rgba"), *_get_rgba(waveform_color))
+        glUniform1f(shader.loc("border_thickness"), border_thickness)
+        glUniform4f(shader.loc("border_rgba"), *_get_rgba(border_color))
+        glUniform2f(shader.loc("xy1"), x1, y1)
+        glUniform2f(shader.loc("xy2"), x2, y2)
+        _draw_textured_quad(x1, y1, 0.0, 0.0, x2, y2, 1.0, 1.0)
 
 def _draw_quad(x1, y1, x2, y2):
 	glBegin(GL_TRIANGLE_STRIP)

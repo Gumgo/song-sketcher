@@ -257,6 +257,11 @@ class AbsoluteLayoutWidget(ContainerWidget):
     def remove_child_at_index(self, index):
         self._children.pop(index).parent = None
 
+    def clear_children(self):
+        for child in self._children:
+            child.parent = None
+        self._children.clear()
+
     def layout_children(self):
         for child in self.get_children():
             child.layout_widget(

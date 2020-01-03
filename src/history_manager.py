@@ -6,11 +6,12 @@ class Entry:
 
         # This function is provided in case the entry points to data not managed by python
         # E.g. audio clips managed by the engine
+        # It takes a bool argument was_undone
         self.destroy_func = None
 
-    def destroy(self):
+    def destroy(self, was_undone):
         if self.destroy_func is not None:
-            self.destroy_func()
+            self.destroy_func(was_undone)
 
 class HistoryManager:
     def __init__(self, on_state_change_func):
@@ -29,15 +30,15 @@ class HistoryManager:
 
     def destroy(self):
         for entry in self._redo_stack:
-            entry.destroy()
+            entry.destroy(True)
         while len(self._undo_stack) > 0:
-            self._undo_stack.pop().destroy()
+            self._undo_stack.pop().destroy(False)
 
     def add_entry(self, entry):
         assert not self._entry_active
 
         for redo_entry in self._redo_stack:
-            redo_entry.destroy()
+            redo_entry.destroy(True)
         self._redo_stack.clear()
 
         # If our last saved change index is in the redo stack, we'll never be able to reach it again
