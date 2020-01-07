@@ -1,6 +1,5 @@
 from OpenGL.GL import *
 
-# $TODO expand to support more general affine transforms
 class Transform:
     def __init__(self, x = 0.0, y = 0.0):
         self.x = x
@@ -21,8 +20,6 @@ class Transform:
 
     def transform_point(self, point):
         return (self.x + point[0], self.y + point[1])
-
-    # $TODO: transform_vector
 
     def inverse(self):
         return Transform(-self.x, -self.y)

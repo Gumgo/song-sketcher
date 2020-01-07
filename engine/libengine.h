@@ -90,3 +90,7 @@ PyObject *stop_playback(PyObject *self);
 // Returns the current playback sample index
 // Returns: sample_index
 PyObject *get_playback_sample_index(PyObject *self);
+
+// Sets the metronome rate, or disables the metronome if 0.0 is provided
+// Arguments: samples_per_beat
+PyObject *set_metronome_samples_per_beat(PyObject *self, PyObject *args);

@@ -640,9 +640,7 @@ class ScrollbarWidget(WidgetWithSize):
         PRESSED = 2
 
     _COLOR_OUTER = (0.25, 0.25, 0.25, 1.0)
-    _COLOR_INNER_DEFAULT = (0.625, 0.625, 0.625, 1.0)
-    _COLOR_INNER_HOVER = (0.75, 0.75, 0.75, 1.0)
-    _COLOR_INNER_PRESSED = (0.5, 0.5, 0.5, 1.0)
+    _COLOR_INNER = (0.625, 0.625, 0.625, 1.0)
 
     def __init__(self, orientation):
         super().__init__()
@@ -652,7 +650,7 @@ class ScrollbarWidget(WidgetWithSize):
         self._orientation = orientation
         self._pressed_xyp = None # x, y, position at time of press
         self._state = self._State.DEFAULT
-        self._color_inner = parameter.AnimatableParameter(self._COLOR_INNER_DEFAULT)
+        self._color_inner = parameter.AnimatableParameter(self._COLOR_INNER)
         self._padding_inner = points(2.0)
         self._visible_ratio = 1.0
         self._position = 0.0 # From 0 to 1
@@ -768,9 +766,9 @@ class ScrollbarWidget(WidgetWithSize):
         if new_state is not self._state:
             self._state = new_state
             color = {
-                self._State.DEFAULT: self._COLOR_INNER_DEFAULT,
-                self._State.HOVER: self._COLOR_INNER_HOVER,
-                self._State.PRESSED: self._COLOR_INNER_PRESSED
+                self._State.DEFAULT: self._COLOR_INNER,
+                self._State.HOVER: drawing.lighten_color(self._COLOR_INNER, 0.5),
+                self._State.PRESSED: drawing.darken_color(self._COLOR_INNER, 0.5)
             }[self._state]
             self._color_inner.transition().target(color).duration(0.125).ease_out()
 
@@ -925,22 +923,19 @@ class ButtonWidget(WidgetWithSize):
         self.desired_height = 0.0
         self.action_func = None
         self._color_default = None
-        self.color_hover = None
-        self.color_pressed = None
-        self.color_disabled = None
         self._enabled = True
         self._pressed = False
         self._state = self._State.DEFAULT
         self._color = parameter.AnimatableParameter(constants.Color.WHITE)
 
     @property
-    def color_default(self):
+    def color(self):
         return self._color_default
 
-    @color_default.setter
-    def color_default(self, color_default):
-        self._color_default = color_default
-        self._color.value = color_default
+    @color.setter
+    def color(self, color):
+        self._color_default = color
+        self._color.value = color
 
     @property
     def enabled(self):
@@ -990,11 +985,11 @@ class ButtonWidget(WidgetWithSize):
         if new_state is not self._state:
             self._state = new_state
             color = {
-                self._State.DEFAULT: self.color_default,
-                self._State.HOVER: self.color_hover,
-                self._State.PRESSED: self.color_default,
-                self._State.PRESSED_HOVER: self.color_pressed,
-                self._State.DISABLED: self.color_disabled
+                self._State.DEFAULT: self.color,
+                self._State.HOVER: drawing.lighten_color(self.color, 0.5),
+                self._State.PRESSED: self.color,
+                self._State.PRESSED_HOVER: drawing.darken_color(self.color, 0.5),
+                self._State.DISABLED: drawing.darken_color(self.color, 0.5)
             }[self._state]
             if animate:
                 self._color.transition().target(color).duration(0.125).ease_out()
@@ -1006,10 +1001,7 @@ class TextButtonWidget(ButtonWidget):
         super().__init__()
         self.desired_width = None
         self.desired_height = points(20.0)
-        self.color_default = (0.5, 0.5, 0.5, 1.0)
-        self.color_hover = (0.75, 0.75, 0.75, 1.0)
-        self.color_pressed = (0.25, 0.25, 0.25, 1.0)
-        self.color_disabled = (0.25, 0.25, 0.25, 1.0)
+        self.color = (0.5, 0.5, 0.5, 1.0)
         self.text = ""
         self.font_name = "arial"
         self.text_size = points(12.0)
@@ -1049,10 +1041,7 @@ class IconButtonWidget(ButtonWidget):
         super().__init__()
         self.desired_width = inches(1.0)
         self.desired_height = inches(1.0)
-        self.color_default = (0.5, 0.5, 0.5, 1.0)
-        self.color_hover = (0.75, 0.75, 0.75, 1.0)
-        self.color_pressed = (0.25, 0.25, 0.25, 1.0)
-        self.color_disabled = (0.25, 0.25, 0.25, 1.0)
+        self.color = constants.Ui.ICON_BUTTON_COLOR
         self.icon_name = None
 
     def get_desired_size(self):
@@ -1077,8 +1066,8 @@ class DropdownWidget(WidgetWithSize):
         PRESSED_HOVER = 3
 
     _COLOR_DEFAULT = (0.9, 0.9, 0.9, 1.0)
-    _COLOR_HOVER = (1.0, 1.0, 1.0, 1.0)
-    _COLOR_PRESSED = (0.75, 0.75, 0.75, 1.0)
+    _COLOR_HOVER = drawing.lighten_color(_COLOR_DEFAULT, 1.0)
+    _COLOR_PRESSED = drawing.darken_color(_COLOR_DEFAULT, 0.25)
 
     _COLOR_OPTION_STRIPE_A = (0.8, 0.8, 0.8, 1.0)
     _COLOR_OPTION_STRIPE_B = (0.9, 0.9, 0.9, 1.0)
@@ -1333,7 +1322,7 @@ class SpinnerWidget(WidgetWithSize):
 
     _COLOR_INNER = constants.Color.WHITE
     _COLOR_OUTER_DEFAULT = (0.5, 0.5, 0.5, 1.0)
-    _COLOR_OUTER_HOVER = (0.75, 0.75, 0.75, 1.0)
+    _COLOR_OUTER_HOVER = drawing.lighten_color(_COLOR_OUTER_DEFAULT, 0.5)
     _COLOR_OUTER_BACKGROUND = (0.25, 0.25, 0.25, 1.0)
     _RATIO_START = 0.125
     _RATIO_END = 0.875
@@ -1459,7 +1448,7 @@ class SpinnerWidget(WidgetWithSize):
 
 class InputWidget(WidgetWithSize):
     _COLOR = (0.9, 0.9, 0.9, 1.0)
-    _COLOR_DISABLED = (0.45, 0.45, 0.45, 1.0)
+    _COLOR_DISABLED = drawing.darken_color(_COLOR, 0.5)
     _CURSOR_PHASE_DURATION = 2.0 / 3.0
 
     def __init__(self):

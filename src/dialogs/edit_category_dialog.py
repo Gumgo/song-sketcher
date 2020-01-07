@@ -64,21 +64,23 @@ class EditCategoryDialog:
         if category is not None:
             delete_button = widget.IconButtonWidget()
             buttons_layout.add_child(delete_button)
-            delete_button.icon_name = "metronome" # $TODO
+            delete_button.icon_name = "delete"
             delete_button.action_func = self._delete
 
         buttons_layout.add_padding(points(4.0), weight = 1.0)
 
         accept_button = widget.IconButtonWidget()
         buttons_layout.add_child(accept_button)
-        accept_button.icon_name = "metronome" # $TODO
+        accept_button.color = constants.Ui.ACCEPT_BUTTON_COLOR
+        accept_button.icon_name = "accept"
         accept_button.action_func = self._accept
 
         buttons_layout.add_padding(points(4.0))
 
         reject_button = widget.IconButtonWidget()
         buttons_layout.add_child(reject_button)
-        reject_button.icon_name = "metronome" # $TODO
+        reject_button.color = constants.Ui.REJECT_BUTTON_COLOR
+        reject_button.icon_name = "reject"
         reject_button.action_func = self._reject
 
         self._destroy_func = modal_dialog.show_modal_dialog(stack_widget, layout)

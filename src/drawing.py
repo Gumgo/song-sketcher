@@ -44,12 +44,30 @@ class _ResourceRegistry:
 
         add_font("arial", font.Font("fonts/arial.json"))
 
-        add_icon("arrow_up", icon.Icon("icons/arrow_up.json"))
+        add_icon("accept", icon.Icon("icons/accept.json"))
+        add_icon("reject", icon.Icon("icons/reject.json"))
         add_icon("arrow_down", icon.Icon("icons/arrow_down.json"))
-        add_icon("plus", icon.Icon("icons/plus.json"))
+        add_icon("arrow_up", icon.Icon("icons/arrow_up.json"))
+
+        add_icon("new", icon.Icon("icons/new.json"))
+        add_icon("load", icon.Icon("icons/load.json"))
+        add_icon("save", icon.Icon("icons/save.json"))
+        add_icon("save_as", icon.Icon("icons/save_as.json"))
+        add_icon("settings", icon.Icon("icons/settings.json"))
+        add_icon("quit", icon.Icon("icons/quit.json"))
+
+        add_icon("record", icon.Icon("icons/record.json"))
+        add_icon("play", icon.Icon("icons/play.json"))
+        add_icon("pause", icon.Icon("icons/pause.json"))
+        add_icon("stop", icon.Icon("icons/stop.json"))
+        add_icon("delete", icon.Icon("icons/delete.json"))
+        add_icon("metronome", icon.Icon("icons/metronome.json"))
+        add_icon("metronome_disabled", icon.Icon("icons/metronome_disabled.json"))
+
         add_icon("undo", icon.Icon("icons/undo.json"))
         add_icon("redo", icon.Icon("icons/redo.json"))
-        add_icon("metronome", icon.Icon("icons/metronome.json"))
+
+        add_icon("plus", icon.Icon("icons/plus.json"))
 
     def shutdown(self):
         for shader in self._shaders:
@@ -134,6 +152,14 @@ def rgba(r, g, b, a = 1.0):
 
 def rgba255(r, g, b, a = 255.0):
     return rgba(r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+
+def darken_color(color, darkness):
+    rgb = tuple(c * (1.0 - darkness) for c in color[:3])
+    return tuple([rgb[0], rgb[1], rgb[2], color[3]])
+
+def lighten_color(color, lightness):
+    rgb = tuple(1.0 - (1.0 - c) * (1.0 - lightness) for c in color[:3])
+    return tuple([rgb[0], rgb[1], rgb[2], color[3]])
 
 def drawing_begin(viewport_width_pixels, viewport_height_pixels):
     glPushMatrix()

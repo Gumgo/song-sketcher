@@ -32,6 +32,7 @@ PyMethodDef functions[] = {
     ENGINE_FUNCTION(start_playback, METH_VARARGS),
     ENGINE_FUNCTION(stop_playback, METH_NOARGS),
     ENGINE_FUNCTION(get_playback_sample_index, METH_NOARGS),
+    ENGINE_FUNCTION(set_metronome_samples_per_beat, METH_VARARGS),
     nullptr
 };
 

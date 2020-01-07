@@ -13,6 +13,8 @@ for i in range(engine.get_output_device_count()):
     print(engine.get_output_device_name(i))
 
 engine.set_sample_rate(44100)
+engine.set_metronome_samples_per_beat(44100 / 2.0)
+
 clip_id = engine.start_recording_clip(
     engine.get_default_input_device_index(),
     engine.get_default_output_device_index(),

@@ -18,3 +18,5 @@ class Settings:
         self.input_device_index = engine.get_default_input_device_index()
         self.output_device_index = engine.get_default_output_device_index()
         self.frames_per_buffer = 1024
+        self.recording_metronome_enabled = True
+        self.playback_metronome_enabled = False

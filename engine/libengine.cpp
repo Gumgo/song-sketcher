@@ -98,6 +98,11 @@ struct s_engine_state {
     std::atomic<s_recording_buffer *> m_current_recording_buffer = nullptr;
     int32_t m_recording_underflows = 0;
 
+    // At time t, it takes n samples until the first metronome tick comes out the speakers (playback latency)
+    // The sound data from time t+n is recorded m samples later (recording latency)
+    // Therefore, we move the recording back in time by n+m samples by ignoring the first n+m samples
+    int32_t m_samples_until_recording_begins = 0;
+
     std::vector<s_playback_clip> m_playback_clips = {};         // List of all clips in the current playback
     std::vector<s_playback_event> m_playback_events = {};       // Ordered list of start and stop events for clips
     s_playback_clip *m_first_active_playback_clip = nullptr;    // Linked list of active playback clips
@@ -105,7 +110,15 @@ struct s_engine_state {
     bool m_playing = false;
     std::atomic<int32_t> m_playback_sample_index = 0;
     size_t m_next_playback_event_index = 0;
+
+    std::atomic<double> m_metronome_samples_per_beat = 0.0;
+    int32_t m_metronome_sample = 0;
 };
+
+static const double k_metronome_pitch_hz = 1760.0;
+static const double k_metronome_time_seconds = 0.05;
+static const double k_metronome_amplitude = 0.5;
+static const double k_pi = 3.141592653589793238463;
 
 static s_engine_state g_engine_state;
 
@@ -127,6 +140,8 @@ static int playback_stream_main(
     const PaStreamCallbackTimeInfo *time_info,
     PaStreamCallbackFlags status_flags,
     void *user_data);
+
+static void add_metronome_track(float *output, size_t frame_count);
 
 // Common error checks
 #define ERROR_IF_RECORDING                                                                          \
@@ -488,6 +503,13 @@ PyObject *start_recording_clip(PyObject *self, PyObject *args) {
     g_engine_state.m_recording_allocator.start(recording_buffer_length, recording_buffer_padding);
     g_engine_state.m_current_recording_buffer = g_engine_state.m_recording_allocator.get_first_buffer();
 
+    // This is used by the metronome
+    g_engine_state.m_playback_sample_index = 0;
+    g_engine_state.m_metronome_sample = INT32_MAX;
+
+    PaTime total_latency = input_device.m_suggested_latency + output_device.m_suggested_latency;
+    g_engine_state.m_samples_until_recording_begins = static_cast<int32_t>(total_latency * g_engine_state.m_sample_rate);
+
     result = Pa_OpenStream(
         &g_engine_state.m_stream,
         &input_params,
@@ -634,7 +656,7 @@ PyObject *get_clip_samples(PyObject *self, PyObject *args) {
         return nullptr;
     }
 
-    for (int32_t i = 0; i < max_sample_count; ++i) {
+    for (int32_t i = 0; i < sample_count; ++i) {
         // Spread out samples evenly if the count exceeds max_sample_count
         int64_t source_index = static_cast<int64_t>(i) * static_cast<int64_t>(clip.m_samples.size()) / max_sample_count;
         PyObject *value = PyFloat_FromDouble(clip.m_samples[source_index]);
@@ -790,6 +812,7 @@ PyObject *start_playback(PyObject *self, PyObject *args) {
     }
 
     g_engine_state.m_playback_sample_index = sample_index;
+    g_engine_state.m_metronome_sample = INT32_MAX;
 
     result = Pa_OpenStream(
         &g_engine_state.m_stream,
@@ -844,6 +867,21 @@ PyObject *get_playback_sample_index(PyObject *self) {
     return PyLong_FromLong(g_engine_state.m_playback_sample_index);
 }
 
+PyObject *set_metronome_samples_per_beat(PyObject *self, PyObject *args) {
+    double samples_per_beat;
+    if (!PyArg_ParseTuple(args, "d", &samples_per_beat)) {
+        return nullptr;
+    }
+
+    if (samples_per_beat < 0.0) {
+        PyErr_SetString(PyExc_ValueError, "Invalid samples per beat");
+        return nullptr;
+    }
+
+    g_engine_state.m_metronome_samples_per_beat = samples_per_beat;
+    Py_RETURN_NONE;
+}
+
 static void activate_playback_clip(size_t playback_clip_index) {
     s_playback_clip &playback_clip = g_engine_state.m_playback_clips[playback_clip_index];
     assert(playback_clip.m_prev_active_playback_clip == nullptr);
@@ -881,9 +919,16 @@ int recording_stream_main(
     const PaStreamCallbackTimeInfo *time_info,
     PaStreamCallbackFlags status_flags,
     void *user_data) {
+    float *output_buffer = reinterpret_cast<float *>(output);
+    memset(output_buffer, 0, frame_count * sizeof(float));
+
+    add_metronome_track(output_buffer, frame_count);
+
     s_recording_buffer *recording_buffer = g_engine_state.m_current_recording_buffer;
 
-    size_t frame_index = 0;
+    // Start out by skipping frames if necessary
+    size_t frame_index = std::min(static_cast<unsigned long>(g_engine_state.m_samples_until_recording_begins), frame_count);
+    g_engine_state.m_samples_until_recording_begins -= static_cast<int32_t>(frame_index);
     while (frame_index < frame_count) {
         size_t capacity = recording_buffer->m_samples.size();
         size_t usage = recording_buffer->m_usage;
@@ -911,6 +956,7 @@ int recording_stream_main(
     // Update the current recording buffer for the next callback
     g_engine_state.m_current_recording_buffer = recording_buffer;
 
+    g_engine_state.m_playback_sample_index += static_cast<int32_t>(frame_count);
     return paContinue;
 }
 
@@ -924,6 +970,8 @@ int playback_stream_main(
     // Zero the output buffer because we're going to accumulate clip samples
     float *output_buffer = reinterpret_cast<float *>(output);
     memset(output_buffer, 0, frame_count * sizeof(float));
+
+    add_metronome_track(output_buffer, frame_count);
 
     int32_t current_sample_index = g_engine_state.m_playback_sample_index;
     int32_t end_sample_index = current_sample_index + static_cast<int32_t>(frame_count);
@@ -978,4 +1026,60 @@ int playback_stream_main(
 
     g_engine_state.m_playback_sample_index = end_sample_index;
     return paContinue;
+}
+
+static void add_metronome_track(float *output, size_t frame_count) {
+    double metronome_samples_per_beat = g_engine_state.m_metronome_samples_per_beat;
+    if (metronome_samples_per_beat == 0.0) {
+        g_engine_state.m_metronome_sample = INT32_MAX;
+    }
+
+    double sample_sine_multiplier =
+        k_metronome_pitch_hz * 2.0 * k_pi / static_cast<double>(g_engine_state.m_sample_rate);
+
+    int32_t metronome_sample_count = static_cast<int32_t>(k_metronome_time_seconds * g_engine_state.m_sample_rate);
+
+    int32_t current_sample_index = g_engine_state.m_playback_sample_index;
+    size_t frame_index = 0;
+    while (frame_index < frame_count) {
+        // Determine the next metronome sample and process up to that point
+        int32_t next_metronome_sample_index;
+        if (metronome_samples_per_beat == 0.0) {
+            // The next metronome sample never occurs
+            next_metronome_sample_index = current_sample_index + static_cast<int32_t>(frame_count) + 1;
+        } else {
+            double last_beat_index = floor(static_cast<double>(current_sample_index) / metronome_samples_per_beat);
+            int32_t last_metronome_sample_index = static_cast<int32_t>(floor(last_beat_index * metronome_samples_per_beat));
+            if (current_sample_index == last_metronome_sample_index) {
+                // This next sample the one we just fell on, process it immediately
+                next_metronome_sample_index = last_metronome_sample_index;
+            } else {
+                double next_beat_index = last_beat_index + 1.0;
+                next_metronome_sample_index = static_cast<int32_t>(floor(next_beat_index * metronome_samples_per_beat));
+            }
+        }
+
+        int32_t samples_to_process;
+        if (current_sample_index == next_metronome_sample_index) {
+            g_engine_state.m_metronome_sample = 0;
+            samples_to_process = 1; // Advance by 1 sample and loop in order to find the next metronome sample index
+        } else {
+            samples_to_process = std::min(
+                next_metronome_sample_index - current_sample_index,
+                static_cast<int32_t>(frame_count - frame_index));
+        }
+
+        int32_t metronome_sample = g_engine_state.m_metronome_sample;
+        for (int32_t i = 0; i < samples_to_process; ++i) {
+            if (metronome_sample < metronome_sample_count) {
+                output[frame_index] += static_cast<float>(
+                    sin(static_cast<double>(i) * sample_sine_multiplier) * k_metronome_amplitude);
+                ++metronome_sample;
+            }
+            ++frame_index;
+            ++current_sample_index;
+        }
+
+        g_engine_state.m_metronome_sample = metronome_sample;
+    }
 }

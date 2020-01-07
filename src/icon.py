@@ -18,6 +18,17 @@ class Icon:
 
             icon_image = imageio.imread(image_filename)
             assert icon_image.dtype == np.uint8
+            if len(icon_image.shape) == 2:
+                fixed_icon_image = np.ndarray([icon_image.shape[0], icon_image.shape[1], 3], dtype = np.uint8)
+                # Special case - single channel
+                for c in range(3):
+                    fixed_icon_image[:, :, c] = icon_image[:, :]
+                icon_image = fixed_icon_image
+            else:
+                assert len(icon_image.shape) == 3
+                if icon_image.shape[2] == 4:
+                    icon_image = np.delete(icon_image, 3, 2)
+
             assert len(icon_image.shape) == 3
             assert icon_image.shape[2] == 3
 

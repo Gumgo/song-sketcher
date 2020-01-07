@@ -18,7 +18,6 @@ def shutdown():
 def get():
     return _project_manager
 
-# $TODO handle errors at call sites
 class ProjectManager:
     def __init__(self):
         try:

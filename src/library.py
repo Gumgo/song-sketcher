@@ -10,10 +10,13 @@ import widget
 import widget_event
 
 class Library:
-    def __init__(self, root_stack_widget, project, history_manager):
+    def __init__(self, root_stack_widget, project, history_manager, update_tracks_func):
         self._root_stack_widget = root_stack_widget
         self._project = project
         self._history_manager = history_manager
+        self._update_tracks_func = update_tracks_func
+
+        self._selected_clip_id = None
 
         self._padding = points(4.0)
 
@@ -55,6 +58,10 @@ class Library:
     def root_layout(self):
         return self._root_layout
 
+    @property
+    def selected_clip_id(self):
+        return self._selected_clip_id
+
     def _layout_widgets(self, animate = True):
         self._categories_layout.clear_children()
         self._categories_layout.margin = (self._padding, 0.0, self._padding, 0.0) # Side padding
@@ -93,7 +100,12 @@ class Library:
             for clip_id in category.clip_ids:
                 clip = self._project.get_clip_by_id(clip_id)
                 if clip not in self._clip_widgets:
-                    self._clip_widgets[clip] = ClipWidget(category, clip, lambda clip = clip: self._edit_clip(clip))
+                    self._clip_widgets[clip] = ClipWidget(
+                        category,
+                        clip,
+                        clip_id == self._selected_clip_id,
+                        lambda clip_id = clip_id: self._select_clip(clip_id),
+                        lambda clip = clip: self._edit_clip(clip))
 
         self._categories_layout.add_padding(self._padding)
         self._clips_layout.set_row_size(0, self._padding)
@@ -166,6 +178,9 @@ class Library:
             if old_position is not None:
                 animate_position(widget, old_position)
 
+        # Make sure selection color is up to date
+        self._select_clip(self._selected_clip_id)
+
     def _add_category(self):
         def on_accept(name, color):
             new_category = project.ClipCategory()
@@ -201,13 +216,13 @@ class Library:
                 category.name = name
                 category.color = color
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def undo():
                 category.name = old_name
                 category.color = old_color
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             do()
 
@@ -220,18 +235,40 @@ class Library:
             old_clips = self._project.clips.copy()
             category_index = self._project.clip_categories.index(category)
 
+            track_usages = set()
+            for track in self._project.tracks:
+                for i, clip_id in enumerate(track.measure_clip_ids):
+                    if clip_id in category.clip_ids:
+                        track_usages.add((clip_id, track, i))
+
             def do():
                 clip_ids_to_delete = set(category.clip_ids)
                 self._project.clips = [x for x in self._project.clips if x.id not in clip_ids_to_delete]
                 self._project.clip_categories.remove(category)
+
+                for clip_id, track, index in track_usages:
+                    track.measure_clip_ids[index] = None
+                self._project.update_track_length()
+
+                if self._selected_clip_id in clip_ids_to_delete:
+                    self._selected_clip_id = None
+
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def undo():
                 self._project.clips = old_clips
                 self._project.clip_categories.insert(category_index, category)
+
+                if len(track_usages) > 0:
+                    max_index = max(i for c, t, i in track_usages)
+                    self._project.ensure_track_length(max_index + 1)
+                    for clip_id, track, index in track_usages:
+                        track.measure_clip_ids[index] = clip_id
+                    self._project.update_track_length()
+
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def destroy(was_undone):
                 if not was_undone:
@@ -270,6 +307,8 @@ class Library:
             def undo():
                 self._project.clips.remove(new_clip)
                 category.clip_ids.remove(new_clip.id)
+                if self._selected_clip_id == new_clip.id:
+                    self._selected_clip_id = None
                 self._layout_widgets()
 
             def destroy(was_undone):
@@ -306,14 +345,14 @@ class Library:
                 clip.start_sample_index = start_sample_index
                 clip.end_sample_index = end_sample_index
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def undo():
                 clip.name = old_name
                 clip.start_sample_index = old_start_sample_index
                 clip.end_sample_index = old_end_sample_index
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             do()
 
@@ -327,17 +366,39 @@ class Library:
             category = next(x for x in self._project.clip_categories if clip.id in x.clip_ids)
             category_index = category.clip_ids.index(clip.id)
 
+            track_usages = set()
+            for track in self._project.tracks:
+                for i, clip_id in enumerate(track.measure_clip_ids):
+                    if clip_id == clip.id:
+                        track_usages.add((track, i))
+
             def do():
                 self._project.clips.remove(clip)
                 category.clip_ids.remove(clip.id)
+
+                for track, index in track_usages:
+                    track.measure_clip_ids[index] = None
+                self._project.update_track_length()
+
+                if self._selected_clip_id == clip.id:
+                    self._selected_clip_id = None
+
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def undo():
                 self._project.clips.insert(clip_index, clip)
                 category.clip_ids.insert(category_index, clip.id)
+
+                if len(track_usages) > 0:
+                    max_index = max(i for t, i in track_usages)
+                    self._project.ensure_track_length(max_index + 1)
+                    for track, index in track_usages:
+                        track.measure_clip_ids[index] = clip.id
+                    self._project.update_track_length()
+
                 self._layout_widgets()
-                # $TODO update tracks
+                self._update_tracks_func()
 
             def destroy(was_undone):
                 if not was_undone:
@@ -352,6 +413,15 @@ class Library:
             self._history_manager.add_entry(entry)
 
         dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, clip, on_accept, on_delete)
+
+    def _select_clip(self, clip_id):
+        if self._selected_clip_id is not None:
+            selected_clip_widget = self._clip_widgets[self._project.get_clip_by_id(self._selected_clip_id)]
+            selected_clip_widget.background.border_color.transition().target(ClipWidget.UNSELECTED_COLOR).duration(0.125).ease_out()
+        self._selected_clip_id = clip_id
+        if self._selected_clip_id is not None:
+            selected_clip_widget = self._clip_widgets[self._project.get_clip_by_id(self._selected_clip_id)]
+            selected_clip_widget.background.border_color.transition().target(ClipWidget.SELECTED_COLOR).duration(0.125).ease_out()
 
 class AddWidget(widget.AbsoluteLayoutWidget):
     def __init__(self, add_func):
@@ -414,10 +484,14 @@ class CategoryWidget(widget.AbsoluteLayoutWidget):
         return False
 
 class ClipWidget(widget.AbsoluteLayoutWidget):
-    def __init__(self, category, clip, on_double_click_func):
+    SELECTED_COLOR = constants.Color.WHITE
+    UNSELECTED_COLOR = constants.Color.BLACK
+
+    def __init__(self, category, clip, is_selected, on_click_func, on_double_click_func):
         super().__init__()
         self.category = category
         self.clip = clip
+        self.on_click_func = on_click_func
         self.on_double_click_func = on_double_click_func
 
         self.desired_width = inches(1.5)
@@ -428,7 +502,7 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.background.desired_height = self.desired_height
         self.background.color.value = drawing.rgba255(*self.category.color)
         self.background.border_thickness.value = points(1.0)
-        self.background.border_color.value = constants.Color.BLACK
+        self.background.border_color.value = self.SELECTED_COLOR if is_selected else self.UNSELECTED_COLOR
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 
@@ -443,6 +517,7 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
     def process_event(self, event):
         if isinstance(event, widget_event.MouseEvent) and event.button is widget_event.MouseButton.LEFT:
             if event.event_type is widget_event.MouseEventType.PRESS:
+                self.on_click_func()
                 return True
             elif event.event_type is widget_event.MouseEventType.DOUBLE_CLICK:
                 self.on_double_click_func()

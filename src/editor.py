@@ -4,12 +4,16 @@ import dialogs.new_project_dialog
 import dialogs.save_project_as_dialog
 import dialogs.settings_dialog
 import drawing
+import engine
 import history_manager
 import library
 import modal_dialog
 import project
 import project_manager
+import settings
+import song_timing
 import timeline
+import timer
 from units import *
 import widget
 import widget_manager
@@ -49,6 +53,10 @@ class Editor:
         self._library = None
         self._timeline = None
 
+        # Playback-related fields
+        self._is_playing = False
+        self._playback_updater = None
+
         # This will set up the appropriate "no project loaded" layout
         self._close_project()
 
@@ -72,42 +80,42 @@ class Editor:
 
         self._new_project_button = widget.IconButtonWidget()
         layout.add_child(self._new_project_button)
-        self._new_project_button.icon_name = "metronome" # $TODO
+        self._new_project_button.icon_name = "new"
         self._new_project_button.action_func = self._new_project_button_clicked
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         self._load_project_button = widget.IconButtonWidget()
         layout.add_child(self._load_project_button)
-        self._load_project_button.icon_name = "metronome" # $TODO
+        self._load_project_button.icon_name = "load"
         self._load_project_button.action_func = self._load_project_button_clicked
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         self._save_project_button = widget.IconButtonWidget()
         layout.add_child(self._save_project_button)
-        self._save_project_button.icon_name = "metronome" # $TODO
+        self._save_project_button.icon_name = "save"
         self._save_project_button.action_func = self._save_project_button_clicked
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         self._save_project_as_button = widget.IconButtonWidget()
         layout.add_child(self._save_project_as_button)
-        self._save_project_as_button.icon_name = "metronome" # $TODO
+        self._save_project_as_button.icon_name = "save_as"
         self._save_project_as_button.action_func = self._save_project_as_button_clicked
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         self._settings_button = widget.IconButtonWidget()
         layout.add_child(self._settings_button)
-        self._settings_button.icon_name = "metronome" # $TODO
+        self._settings_button.icon_name = "settings"
         self._settings_button.action_func = self._settings_button_clicked
 
         layout.add_padding(0.0, weight = 1.0)
 
         self._quit_button = widget.IconButtonWidget()
         layout.add_child(self._quit_button)
-        self._quit_button.icon_name = "metronome" # $TODO
+        self._quit_button.icon_name = "quit"
         self._quit_button.action_func = self._quit_button_clicked
 
         return background
@@ -122,7 +130,11 @@ class Editor:
         timeline_library_layout = widget.VStackedLayoutWidget()
         project_widgets.root_layout.add_child(timeline_library_layout, weight = 1.0)
 
-        self._timeline = timeline.Timeline(self._root_stack_widget, self._project, self._history_manager)
+        self._timeline = timeline.Timeline(
+            self._root_stack_widget,
+            self._project,
+            self._history_manager,
+            lambda: self._library.selected_clip_id)
         timeline_library_layout.add_child(self._timeline.root_layout, weight = 1.0)
 
         timeline_library_divider = widget.RectangleWidget()
@@ -134,7 +146,11 @@ class Editor:
         timeline_library_divider.left_open = True
         timeline_library_divider.right_open = True
 
-        self._library = library.Library(self._root_stack_widget, self._project, self._history_manager)
+        self._library = library.Library(
+            self._root_stack_widget,
+            self._project,
+            self._history_manager,
+            lambda: self._timeline.update_tracks())
         timeline_library_layout.add_child(self._library.root_layout, weight = 1.0)
 
         edit_menu_widget = self._build_edit_menu_widget(project_widgets)
@@ -143,7 +159,6 @@ class Editor:
         return project_widgets
 
     def _build_edit_menu_widget(self, project_widgets):
-        # $TODO enable/disable buttons based on whether a project is open, also disable/enable the save button based on pending changes
         background = widget.BackgroundWidget()
         background.color.value = self._constants.MENU_BACKGROUND_COLOR
         background.border_thickness.value = points(2.0)
@@ -155,19 +170,22 @@ class Editor:
 
         project_widgets.play_pause_button = widget.IconButtonWidget()
         layout.add_child(project_widgets.play_pause_button)
-        project_widgets.play_pause_button.icon_name = "metronome" # $TODO
+        project_widgets.play_pause_button.icon_name = "play"
+        project_widgets.play_pause_button.action_func = self._play_pause
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         project_widgets.stop_button = widget.IconButtonWidget()
         layout.add_child(project_widgets.stop_button)
-        project_widgets.stop_button.icon_name = "metronome" # $TODO
+        project_widgets.stop_button.icon_name = "stop"
+        project_widgets.stop_button.action_func = self._stop
 
         layout.add_padding(self._constants.MENU_PADDING)
 
         project_widgets.metronome_button = widget.IconButtonWidget()
         layout.add_child(project_widgets.metronome_button)
-        project_widgets.metronome_button.icon_name = "metronome" # $TODO
+        project_widgets.metronome_button.icon_name = self._get_metronome_icon()
+        project_widgets.metronome_button.action_func = self._toggle_metronome
 
         layout.add_padding(0.0, weight = 1.0)
 
@@ -222,11 +240,15 @@ class Editor:
         self._ask_to_save_pending_changes(on_save_complete)
 
     def _close_project(self):
-        self._project_name = None
-        self._project = None
         if self._history_manager is not None:
             self._history_manager.destroy()
             self._history_manager = None
+
+        if self._project is not None:
+            self._project.engine_unload()
+
+        self._project_name = None
+        self._project = None
 
         self._root_layout.clear_children()
         if self._project_widgets is not None:
@@ -262,12 +284,17 @@ class Editor:
                 None)
             return False
 
-        self._project_name = project_name
-        self._project = new_project
         if self._history_manager is not None:
             self._history_manager.destroy()
             self._history_manager = None
         self._history_manager = history_manager.HistoryManager(self._update_buttons_enabled)
+
+        if self._project is not None:
+            self._project.engine_unload()
+
+        self._project_name = project_name
+        self._project = new_project
+        self._project.engine_load()
 
         self._root_layout.clear_children()
         if self._project_widgets is not None:
@@ -286,7 +313,6 @@ class Editor:
             widget.VerticalPlacement.FILL)
 
         self._update_buttons_enabled()
-
         return True
 
     def _save_project(self):
@@ -328,6 +354,85 @@ class Editor:
                 ["Yes", "No", "Cancel"],
                 on_dialog_close)
 
+    def _play_pause(self):
+        if not self._is_playing:
+            s = settings.get()
+            if s.output_device_index is None:
+                modal_dialog.show_simple_modal_dialog(
+                    self._root_stack_widget,
+                    "Output device not set",
+                    "The output device must be set before playback.",
+                    ["OK"],
+                    None)
+                return
+
+            # Build the playback clip
+            engine.playback_builder_begin()
+
+            for track in self._project.tracks:
+                for i, clip_id in enumerate(track.measure_clip_ids):
+                    if clip_id is not None:
+                        clip = self._project.get_clip_by_id(clip_id)
+                        samples_per_measure = song_timing.get_samples_per_measure(
+                            self._project.sample_rate,
+                            self._project.beats_per_minute,
+                            self._project.beats_per_measure)
+                        playback_start_sample_index = round((i - 1) * samples_per_measure + clip.start_sample_index)
+                        engine.playback_builder_add_clip(
+                            clip.engine_clip,
+                            clip.start_sample_index,
+                            clip.end_sample_index,
+                            playback_start_sample_index)
+
+            engine.playback_builder_finalize()
+
+            if s.playback_metronome_enabled:
+                samples_per_beat = song_timing.get_samples_per_beat(
+                    self._project.sample_rate,
+                    self._project.beats_per_minute)
+                engine.set_metronome_samples_per_beat(samples_per_beat)
+            else:
+                engine.set_metronome_samples_per_beat(0.0)
+
+            engine.start_playback(
+                s.output_device_index,
+                s.frames_per_buffer,
+                int(self._timeline.get_playback_sample_index()))
+            self._is_playing = True
+            self._playback_updater = timer.Updater(self._playback_update)
+
+            self._project_widgets.play_pause_button.icon_name = "pause"
+            # $TODO disable controls
+        else:
+            engine.stop_playback()
+            self._is_playing = False
+            self._playback_updater.cancel()
+            self._playback_updater = None
+
+            self._project_widgets.play_pause_button.icon_name = "play"
+            # $TODO enable controls
+
+    def _stop(self):
+        if self._is_playing:
+            self._play_pause()
+            assert not self._is_playing
+            # $TODO restore timebar cursor back to last clicked mouse position
+
+    def _get_metronome_icon(self):
+        return "metronome" if settings.get().playback_metronome_enabled else "metronome_disabled"
+
+    def _toggle_metronome(self):
+        s = settings.get()
+        s.playback_metronome_enabled = not s.playback_metronome_enabled
+        if s.playback_metronome_enabled:
+            samples_per_beat = song_timing.get_samples_per_beat(
+                self._project.sample_rate,
+                self._project.beats_per_minute)
+            engine.set_metronome_samples_per_beat(samples_per_beat)
+        else:
+            engine.set_metronome_samples_per_beat(0.0)
+        self._project_widgets.metronome_button.icon_name = self._get_metronome_icon()
+
     def _undo(self):
         if self._history_manager.can_undo():
             self._history_manager.undo()
@@ -346,3 +451,9 @@ class Editor:
             # $TODO disable all if playing
             self._project_widgets.undo_button.set_enabled(self._history_manager.can_undo(), animate)
             self._project_widgets.redo_button.set_enabled(self._history_manager.can_redo(), animate)
+
+    def _playback_update(self, dt):
+        playback_sample_index = engine.get_playback_sample_index()
+        self._timeline.update_time_bar_for_playback(playback_sample_index)
+        if playback_sample_index >= self._timeline.get_song_length_samples():
+            self._stop()

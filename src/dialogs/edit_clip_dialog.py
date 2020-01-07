@@ -61,7 +61,7 @@ class EditClipDialog:
         if clip is None:
             self._waveform_viewer.set_waveform_samples([0.0])
         else:
-            self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(clip.id, _MAX_WAVEFORM_SAMPLES))
+            self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(clip.engine_clip, _MAX_WAVEFORM_SAMPLES))
 
         layout.add_padding(points(12.0))
 
@@ -71,14 +71,15 @@ class EditClipDialog:
         if clip is None:
             self._record_button = widget.IconButtonWidget()
             buttons_layout.add_child(self._record_button)
-            self._record_button.icon_name = "metronome" # $TODO
+            self._record_button.color = (0.75, 0.0, 0.0, 1.0)
+            self._record_button.icon_name = "record"
             self._record_button.action_func = self._record
 
             buttons_layout.add_padding(points(4.0))
 
         self._play_pause_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._play_pause_button)
-        self._play_pause_button.icon_name = "metronome" # $TODO
+        self._play_pause_button.icon_name = "play"
         self._play_pause_button.action_func = self._play_pause
         self._play_pause_button.set_enabled(clip is not None, False)
 
@@ -86,7 +87,7 @@ class EditClipDialog:
 
         self._stop_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._stop_button)
-        self._stop_button.icon_name = "metronome" # $TODO
+        self._stop_button.icon_name = "stop"
         self._stop_button.action_func = self._stop
         self._stop_button.set_enabled(clip is not None, False) # $TODO you can click this anytime and it returns the cursor to the start
 
@@ -94,7 +95,7 @@ class EditClipDialog:
 
         self._metronome_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._metronome_button)
-        self._metronome_button.icon_name = "metronome" # $TODO
+        self._metronome_button.icon_name = self._get_metronome_icon()
         self._metronome_button.action_func = self._toggle_metronome
 
         if clip is not None:
@@ -102,21 +103,23 @@ class EditClipDialog:
 
             self._delete_button = widget.IconButtonWidget()
             buttons_layout.add_child(self._delete_button)
-            self._delete_button.icon_name = "metronome" # $TODO
+            self._delete_button.icon_name = "delete"
             self._delete_button.action_func = self._delete
 
         buttons_layout.add_padding(points(4.0), weight = 1.0)
 
         self._accept_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._accept_button)
-        self._accept_button.icon_name = "metronome" # $TODO
+        self._accept_button.color = constants.Ui.ACCEPT_BUTTON_COLOR
+        self._accept_button.icon_name = "accept"
         self._accept_button.action_func = self._accept
 
         buttons_layout.add_padding(points(4.0))
 
         self._reject_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._reject_button)
-        self._reject_button.icon_name = "metronome" # $TODO
+        self._reject_button.color = constants.Ui.REJECT_BUTTON_COLOR
+        self._reject_button.icon_name = "reject"
         self._reject_button.action_func = self._reject
 
         self._engine_clip = None
@@ -130,11 +133,6 @@ class EditClipDialog:
     def _record(self):
         assert self._clip is None
         if not self._is_recording:
-            self._play_pause_button.set_enabled(False)
-            self._stop_button.set_enabled(False)
-            self._accept_button.set_enabled(False)
-            self._reject_button.set_enabled(False)
-
             s = settings.get()
             if s.input_device_index is None:
                 modal_dialog.show_simple_modal_dialog(
@@ -153,18 +151,36 @@ class EditClipDialog:
                     None)
                 return
 
+            if self._engine_clip is not None:
+                engine.delete_clip(self._engine_clip)
+
+            if s.recording_metronome_enabled:
+                samples_per_beat = song_timing.get_samples_per_beat(
+                    self._project.sample_rate,
+                    self._project.beats_per_minute)
+                engine.set_metronome_samples_per_beat(samples_per_beat)
+            else:
+                engine.set_metronome_samples_per_beat(0.0)
+
             self._engine_clip = engine.start_recording_clip(
                 s.input_device_index,
                 s.output_device_index,
                 s.frames_per_buffer)
             self._is_recording = True
             self._recording_updater = timer.Updater(self._recording_update)
+
+            self._record_button.icon_name = "stop"
+            self._play_pause_button.set_enabled(False)
+            self._stop_button.set_enabled(False)
+            self._accept_button.set_enabled(False)
+            self._reject_button.set_enabled(False)
         else:
             engine.stop_recording_clip()
             self._is_recording = False
             self._recording_updater.cancel()
             self._recording_updater = None
 
+            self._record_button.icon_name = "record"
             self._play_pause_button.set_enabled(True)
             self._stop_button.set_enabled(True)
             self._accept_button.set_enabled(True)
@@ -174,9 +190,6 @@ class EditClipDialog:
 
     def _play_pause(self):
         if not self._is_playing:
-            if self._clip is None:
-                self._record_button.set_enabled(False)
-
             engine_clip = self._engine_clip
             if engine_clip is None:
                 assert self._clip is not None
@@ -189,7 +202,7 @@ class EditClipDialog:
                 modal_dialog.show_simple_modal_dialog(
                     self._stack_widget,
                     "Output device not set",
-                    "The output device must be set before recording.",
+                    "The output device must be set before playback.",
                     ["OK"],
                     None)
                 return
@@ -199,12 +212,24 @@ class EditClipDialog:
             engine.playback_builder_add_clip(engine_clip, 0, sample_count, 0)
             engine.playback_builder_finalize()
 
+            if s.recording_metronome_enabled:
+                samples_per_beat = song_timing.get_samples_per_beat(
+                    self._project.sample_rate,
+                    self._project.beats_per_minute)
+                engine.set_metronome_samples_per_beat(samples_per_beat)
+            else:
+                engine.set_metronome_samples_per_beat(0.0)
+
             engine.start_playback(
                 s.output_device_index,
                 s.frames_per_buffer,
                 0) # $TODO start index
             self._is_playing = True
             self._playback_updater = timer.Updater(self._playback_update)
+
+            if self._clip is None:
+                self._record_button.set_enabled(False)
+            self._play_pause_button.icon = "pause"
         else:
             engine.stop_playback()
             self._is_playing = False
@@ -213,25 +238,36 @@ class EditClipDialog:
 
             if self._clip is None:
                 self._record_button.set_enabled(True)
+            self._play_pause_button.icon = "play"
 
     def _stop(self):
         if self._is_playing:
-            engine.stop_playback()
-            self._is_playing = False
-            self._playback_updater.cancel()
-            self._playback_updater = None
-            # $TODO restore cursor back to last clicked mouse position?
+            self._play_pause()
+            assert not self._is_playing
+            # $TODO restore cursor back to last clicked mouse position
 
-            if self._clip is None:
-                self._record_button.set_enabled(True)
+    def _get_metronome_icon(self):
+        return "metronome" if settings.get().recording_metronome_enabled else "metronome_disabled"
 
     def _toggle_metronome(self):
-        pass
+        s = settings.get()
+        s.recording_metronome_enabled = not s.recording_metronome_enabled
+        if s.recording_metronome_enabled:
+            samples_per_beat = song_timing.get_samples_per_beat(
+                self._project.sample_rate,
+                self._project.beats_per_minute)
+            engine.set_metronome_samples_per_beat(samples_per_beat)
+        else:
+            engine.set_metronome_samples_per_beat(0.0)
+        self._metronome_button.icon_name = self._get_metronome_icon()
 
     def _accept(self):
         assert not self._is_recording
         if self._is_playing:
             engine.stop_playback()
+            self._is_playing = False
+            self._playback_updater.cancel()
+            self._playback_updater = None
 
         name = self._name.text.strip()
         if len(name) == 0:
@@ -251,14 +287,16 @@ class EditClipDialog:
                 measure_count = 0
             else:
                 sample_count = engine.get_clip_sample_count(self._engine_clip)
-                start_sample_index = 0 # $TODO
-                end_sample_index = 0 # $TODO
+                start_sample_index = 0
+                end_sample_index = sample_count
                 measure_count = song_timing.get_measure_count(
                     self._project.sample_rate,
                     self._project.beats_per_minute,
                     self._project.beats_per_measure,
                     sample_count)
                 measure_count = max(0, math.ceil(measure_count) - 1) # Remove the intro measure
+                if measure_count > 1:
+                    measure_count -= 1 # Make the last measure into the outro
         else:
             sample_count = self._clip.sample_count
             start_sample_index = self._clip.start_sample_index
@@ -290,6 +328,9 @@ class EditClipDialog:
         assert not self._is_recording
         if self._is_playing:
             engine.stop_playback()
+            self._is_playing = False
+            self._playback_updater.cancel()
+            self._playback_updater = None
 
         self._destroy_func()
         self._on_delete_func()
@@ -298,6 +339,9 @@ class EditClipDialog:
         assert not self._is_recording
         if self._is_playing:
             engine.stop_playback()
+            self._is_playing = False
+            self._playback_updater.cancel()
+            self._playback_updater = None
 
         if self._engine_clip is not None:
             engine.delete_clip(self._engine_clip)
@@ -308,7 +352,7 @@ class EditClipDialog:
         self._waveform_viewer.set_waveform_samples(engine.get_latest_recorded_samples(_LATEST_WAVEFORM_SAMPLES_COUNT))
 
     def _playback_update(self, dt):
-        # $TODO update graphics
+        # $TODO update time bar graphics
 
         engine_clip = self._engine_clip
         if engine_clip is None:

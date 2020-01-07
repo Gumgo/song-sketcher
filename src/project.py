@@ -101,13 +101,11 @@ class Project:
             engine.save_clip(clip.id, str(folder / "{}.wav".format(clip.id)))
 
     def load(self, path):
-        folder = pathlib.Path(os.path.dirname(path))
         with open(str(path), "r") as file:
             project = json.load(file)
 
+        self.folder = pathlib.Path(os.path.dirname(path))
         self.sample_rate = int(project["sample_rate"])
-        engine.set_sample_rate(self.sample_rate)
-
         self.beats_per_minute = project["beats_per_minutes"]
         self.beats_per_measure = int(project["beats_per_measure"])
 
@@ -120,7 +118,6 @@ class Project:
             clip.start_sample_index = int(loaded_clip["start_sample_index"])
             clip.end_sample_index = int(loaded_clip["end_sample_index"])
             clip.measure_count = int(loaded_clip["measure_count"])
-            clip.engine_clip = engine.load_clip(str(folder / "{}.wav".format(clip.id)))
             self.clips.append(clip)
 
         self.clip_categories = []
@@ -137,8 +134,17 @@ class Project:
         for loaded_track in project["tracks"]:
             track = Track()
             track.name = loaded_track["name"]
-            track.measure_clip_ids = [int(x) for x in loaded_track["measure_clip_ids"]]
+            track.measure_clip_ids = [None if x is None else int(x) for x in loaded_track["measure_clip_ids"]]
             self.tracks.append(track)
+
+    def engine_load(self):
+        engine.set_sample_rate(self.sample_rate)
+        for clip in self.clips:
+            clip.engine_clip = engine.load_clip(str(self.folder / "{}.wav".format(clip.id)))
+
+    def engine_unload(self):
+        for clip in self.clips:
+            engine.delete_clip(clip.engine_clip)
 
     def generate_clip_id(self):
         if self._next_clip_id is None:
@@ -150,3 +156,24 @@ class Project:
     def get_clip_by_id(self, clip_id):
         # Could optimize
         return next((x for x in self.clips if x.id == clip_id))
+
+    # Unifies lengths of all tracks
+    def update_track_length(self):
+        longest_track_length = 0
+        for track in self.tracks:
+            for i, clip_id in enumerate(track.measure_clip_ids):
+                if clip_id is not None:
+                    clip = self.get_clip_by_id(clip_id)
+                    longest_track_length = max(longest_track_length, i + clip.measure_count)
+
+        for track in self.tracks:
+            while len(track.measure_clip_ids) > longest_track_length:
+                track.measure_clip_ids.pop()
+            while len(track.measure_clip_ids) < longest_track_length:
+                track.measure_clip_ids.append(None)
+
+    # Call this before adding clips, then call update_track_length
+    def ensure_track_length(self, track_length):
+        for track in self.tracks:
+            while len(track.measure_clip_ids) < track_length:
+                track.measure_clip_ids.append(None)

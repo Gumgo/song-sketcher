@@ -9,9 +9,12 @@ import sys
 MSDFGEN_EXECUTABLE = pathlib.Path("../msdfgen/x64/Release/msdfgen.exe")
 
 font_filename = sys.argv[1]
+output_directory = pathlib.Path(sys.argv[2])
 font_name = os.path.splitext(os.path.basename(font_filename))[0]
 font_json_filename = font_name + ".json"
 font_image_filename = font_name + ".png"
+font_json_output_filename = str(output_directory / font_json_filename)
+font_image_output_filename = str(output_directory / font_image_filename)
 
 characters = []
 characters += [x for x in range(32, 127)] # Add standard ASCII characters
@@ -95,6 +98,6 @@ for character in characters:
 
 output["glyphs"] = glyphs
 
-with open(font_json_filename, "w") as json_file:
+with open(font_json_output_filename, "w") as json_file:
     json.dump(output, json_file, indent = 2)
-imageio.imwrite(font_image_filename, atlas)
+imageio.imwrite(font_image_output_filename, atlas)
