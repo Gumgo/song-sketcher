@@ -62,6 +62,15 @@ class Library:
     def selected_clip_id(self):
         return self._selected_clip_id
 
+    def set_enabled(self, enabled):
+        for widget in self._category_widgets.values():
+            widget.enabled = enabled
+        self._add_category_widget.set_enabled(enabled)
+        for widget in self._clip_widgets.values():
+            widget.enabled = enabled
+        for widget in self._add_clip_widgets.values():
+            widget.set_enabled(enabled)
+
     def _layout_widgets(self, animate = True):
         self._categories_layout.clear_children()
         self._categories_layout.margin = (self._padding, 0.0, self._padding, 0.0) # Side padding
@@ -438,20 +447,24 @@ class AddWidget(widget.AbsoluteLayoutWidget):
         background.radius.value = points(4.0)
         self.add_child(background)
 
-        button = widget.IconButtonWidget()
-        button.icon_name = "plus"
-        button.desired_width = inches(0.75)
-        button.desired_height = inches(0.75)
-        button.x.value = (self.desired_width - button.desired_width) * 0.5
-        button.y.value = (self.desired_height - button.desired_height) * 0.5
-        button.action_func = add_func
-        self.add_child(button)
+        self._button = widget.IconButtonWidget()
+        self._button.icon_name = "plus"
+        self._button.desired_width = inches(0.75)
+        self._button.desired_height = inches(0.75)
+        self._button.x.value = (self.desired_width - self._button.desired_width) * 0.5
+        self._button.y.value = (self.desired_height - self._button.desired_height) * 0.5
+        self._button.action_func = add_func
+        self.add_child(self._button)
+
+    def set_enabled(self, enabled):
+        self._button.set_enabled(enabled)
 
 class CategoryWidget(widget.AbsoluteLayoutWidget):
     def __init__(self, category, on_double_click_func):
         super().__init__()
         self.category = category
         self.on_double_click_func = on_double_click_func
+        self.enabled = True
 
         self.desired_width = inches(1.5)
         self.desired_height = inches(1.0)
@@ -474,6 +487,9 @@ class CategoryWidget(widget.AbsoluteLayoutWidget):
         self.add_child(self.name)
 
     def process_event(self, event):
+        if not self.enabled:
+            return False
+
         if isinstance(event, widget_event.MouseEvent) and event.button is widget_event.MouseButton.LEFT:
             if event.event_type is widget_event.MouseEventType.PRESS:
                 return True
@@ -493,6 +509,7 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.clip = clip
         self.on_click_func = on_click_func
         self.on_double_click_func = on_double_click_func
+        self.enabled = True
 
         self.desired_width = inches(1.5)
         self.desired_height = inches(1.0)
@@ -515,6 +532,9 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.add_child(self.name)
 
     def process_event(self, event):
+        if not self.enabled:
+            return False
+
         if isinstance(event, widget_event.MouseEvent) and event.button is widget_event.MouseButton.LEFT:
             if event.event_type is widget_event.MouseEventType.PRESS:
                 self.on_click_func()

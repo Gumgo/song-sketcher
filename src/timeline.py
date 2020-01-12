@@ -12,7 +12,7 @@ import widget_event
 _SONG_LENGTH_MEASURE_PADDING = 3
 
 class Timeline:
-    def __init__(self, root_stack_widget, project, history_manager, get_selected_clip_id_func):
+    def __init__(self, root_stack_widget, project, history_manager, get_selected_clip_id_func, on_time_bar_sample_changed_func):
         self._root_stack_widget = root_stack_widget
         self._project = project
         self._history_manager = history_manager
@@ -40,6 +40,7 @@ class Timeline:
         self._time_bar.desired_height = points(20.0)
         self._time_bar.max_sample = 1.0
         self._time_bar.end_sample = 1.0
+        self._time_bar.on_sample_changed_func = on_time_bar_sample_changed_func
 
         h_scrollbar = widget.HScrollbarWidget()
         self._root_layout.add_child(2, 0, h_scrollbar)
@@ -78,6 +79,13 @@ class Timeline:
     def root_layout(self):
         return self._root_layout
 
+    def set_enabled(self, enabled):
+        for widget in self._track_widgets.values():
+            widget.enabled = enabled
+        self._add_track_widget.set_enabled(enabled)
+        for widget in self._measure_widgets.values():
+            widget.enabled = enabled
+
     def update_tracks(self):
         self._layout_widgets(True)
 
@@ -88,11 +96,11 @@ class Timeline:
             self._project.beats_per_measure)
         return self._get_song_length_measures() * samples_per_measure
 
-    def update_time_bar_for_playback(self, playback_sample_index):
-        self._time_bar.sample = min(max(playback_sample_index, self._time_bar.min_sample), self._time_bar.max_sample)
-
     def get_playback_sample_index(self):
         return self._time_bar.sample
+
+    def set_playback_sample_index(self, sample):
+        self._time_bar.sample = min(max(float(sample), self._time_bar.min_sample), self._time_bar.max_sample)
 
     def _layout_widgets(self, animate = True):
         self._tracks_layout.clear_children()
@@ -424,14 +432,17 @@ class AddTrackWidget(widget.AbsoluteLayoutWidget):
         background.radius.value = points(4.0)
         self.add_child(background)
 
-        button = widget.IconButtonWidget()
-        button.icon_name = "plus"
-        button.desired_width = inches(0.75)
-        button.desired_height = inches(0.75)
-        button.x.value = (self.desired_width - button.desired_width) * 0.5
-        button.y.value = (self.desired_height - button.desired_height) * 0.5
-        button.action_func = add_func
-        self.add_child(button)
+        self._button = widget.IconButtonWidget()
+        self._button.icon_name = "plus"
+        self._button.desired_width = inches(0.75)
+        self._button.desired_height = inches(0.75)
+        self._button.x.value = (self.desired_width - self._button.desired_width) * 0.5
+        self._button.y.value = (self.desired_height - self._button.desired_height) * 0.5
+        self._button.action_func = add_func
+        self.add_child(self._button)
+
+    def set_enabled(self, enabled):
+        self._button.set_enabled(enabled)
 
 class TrackWidget(widget.AbsoluteLayoutWidget):
     _COLOR = (0.75, 0.75, 0.75, 1.0)
@@ -440,6 +451,7 @@ class TrackWidget(widget.AbsoluteLayoutWidget):
         super().__init__()
         self.track = track
         self.on_double_click_func = on_double_click_func
+        self.enabled = True
 
         self.desired_width = _get_track_width()
         self.desired_height = _get_track_height()
@@ -462,6 +474,9 @@ class TrackWidget(widget.AbsoluteLayoutWidget):
         self.add_child(self.name)
 
     def process_event(self, event):
+        if not self.enabled:
+            return False
+
         if isinstance(event, widget_event.MouseEvent) and event.button is widget_event.MouseButton.LEFT:
             if event.event_type is widget_event.MouseEventType.PRESS:
                 return True
@@ -475,6 +490,7 @@ class MeasureWidget(widget.AbsoluteLayoutWidget):
     def __init__(self, on_click_func):
         super().__init__()
         self.on_click_func = on_click_func
+        self.enabled = True
 
         self.desired_width = _get_measure_width(None)
         self.desired_height = _get_track_height() # Measures line up with tracks
@@ -507,6 +523,9 @@ class MeasureWidget(widget.AbsoluteLayoutWidget):
         self.name.x.value = self.desired_width * 0.5
 
     def process_event(self, event):
+        if not self.enabled:
+            return False
+
         if (isinstance(event, widget_event.MouseEvent)
             and event.button is widget_event.MouseButton.LEFT
             and event.event_type is widget_event.MouseEventType.PRESS):

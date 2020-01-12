@@ -60,7 +60,7 @@ class Editor:
         # This will set up the appropriate "no project loaded" layout
         self._close_project()
 
-        self._update_buttons_enabled(False)
+        self._update_controls_enabled(False)
 
     def shutdown(self):
         pass
@@ -134,7 +134,8 @@ class Editor:
             self._root_stack_widget,
             self._project,
             self._history_manager,
-            lambda: self._library.selected_clip_id)
+            lambda: self._library.selected_clip_id,
+            self._on_time_bar_sample_changed)
         timeline_library_layout.add_child(self._timeline.root_layout, weight = 1.0)
 
         timeline_library_divider = widget.RectangleWidget()
@@ -155,6 +156,8 @@ class Editor:
 
         edit_menu_widget = self._build_edit_menu_widget(project_widgets)
         project_widgets.root_layout.add_child(edit_menu_widget)
+
+        self._last_clicked_sample_index = None
 
         return project_widgets
 
@@ -218,7 +221,6 @@ class Editor:
         self._ask_to_save_pending_changes(on_save_complete)
 
     def _save_project_button_clicked(self):
-        # $TODO enable/disable this based on whether there are pending changes
         self._save_project()
 
     def _save_project_as_button_clicked(self):
@@ -233,6 +235,9 @@ class Editor:
         dialogs.settings_dialog.SettingsDialog(self._root_stack_widget)
 
     def _quit_button_clicked(self):
+        if self._is_playing:
+            self._stop()
+
         def on_save_complete(success):
             if success:
                 exit(0) # $TODO do better than this
@@ -267,7 +272,7 @@ class Editor:
             widget.HorizontalPlacement.FILL,
             widget.VerticalPlacement.FILL)
 
-        self._update_buttons_enabled()
+        self._update_controls_enabled()
 
     def _load_project(self, project_name):
         pm = project_manager.get()
@@ -287,7 +292,7 @@ class Editor:
         if self._history_manager is not None:
             self._history_manager.destroy()
             self._history_manager = None
-        self._history_manager = history_manager.HistoryManager(self._update_buttons_enabled)
+        self._history_manager = history_manager.HistoryManager(self._update_controls_enabled)
 
         if self._project is not None:
             self._project.engine_unload()
@@ -312,7 +317,7 @@ class Editor:
             widget.HorizontalPlacement.FILL,
             widget.VerticalPlacement.FILL)
 
-        self._update_buttons_enabled()
+        self._update_controls_enabled()
         return True
 
     def _save_project(self):
@@ -402,7 +407,7 @@ class Editor:
             self._playback_updater = timer.Updater(self._playback_update)
 
             self._project_widgets.play_pause_button.icon_name = "pause"
-            # $TODO disable controls
+            self._update_controls_enabled()
         else:
             engine.stop_playback()
             self._is_playing = False
@@ -410,13 +415,33 @@ class Editor:
             self._playback_updater = None
 
             self._project_widgets.play_pause_button.icon_name = "play"
-            # $TODO enable controls
+            self._update_controls_enabled()
+
+    def _on_time_bar_sample_changed(self):
+        sample_index = self._timeline.get_playback_sample_index()
+        self._last_clicked_sample_index = sample_index
+
+        if self._is_playing:
+            s = settings.get()
+            assert s.output_device_index is not None # Should not have changed
+
+            # Stopping and starting the stream at the new position should be good enough
+            engine.stop_playback()
+            engine.start_playback(
+                s.output_device_index,
+                s.frames_per_buffer,
+                int(sample_index))
 
     def _stop(self):
         if self._is_playing:
             self._play_pause()
             assert not self._is_playing
-            # $TODO restore timebar cursor back to last clicked mouse position
+
+        if self._timeline.get_playback_sample_index() == self._last_clicked_sample_index:
+            self._timeline.set_playback_sample_index(0.0)
+            self._last_clicked_sample_index = None
+        else:
+            self._timeline.set_playback_sample_index(self._last_clicked_sample_index or 0.0)
 
     def _get_metronome_icon(self):
         return "metronome" if settings.get().playback_metronome_enabled else "metronome_disabled"
@@ -441,19 +466,25 @@ class Editor:
         if self._history_manager.can_redo():
             self._history_manager.redo()
 
-    def _update_buttons_enabled(self, animate = True):
+    def _update_controls_enabled(self, animate = True):
         can_save_as = self._project is not None
         can_save = can_save_as and self._history_manager.has_unsaved_changes()
-        self._save_project_button.set_enabled(can_save, animate)
-        self._save_project_as_button.set_enabled(can_save_as, animate)
+
+        self._new_project_button.set_enabled(not self._is_playing)
+        self._load_project_button.set_enabled(not self._is_playing)
+        self._save_project_button.set_enabled(not self._is_playing and can_save)
+        self._save_project_as_button.set_enabled(not self._is_playing and can_save_as)
+        self._settings_button.set_enabled(not self._is_playing)
 
         if self._project is not None:
-            # $TODO disable all if playing
+            self._library.set_enabled(not self._is_playing)
+            self._timeline.set_enabled(not self._is_playing)
+
             self._project_widgets.undo_button.set_enabled(self._history_manager.can_undo(), animate)
             self._project_widgets.redo_button.set_enabled(self._history_manager.can_redo(), animate)
 
     def _playback_update(self, dt):
         playback_sample_index = engine.get_playback_sample_index()
-        self._timeline.update_time_bar_for_playback(playback_sample_index)
+        self._timeline.set_playback_sample_index(playback_sample_index)
         if playback_sample_index >= self._timeline.get_song_length_samples():
             self._stop()
