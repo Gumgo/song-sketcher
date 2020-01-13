@@ -1,11 +1,11 @@
-import constants
-import drawing
-import modal_dialog
-import parameter
-import project
-from units import *
-import widget
-import widget_event
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher import modal_dialog
+from song_sketcher import parameter
+from song_sketcher import project
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_event
 
 class EditCategoryDialog:
     # on_accept_func takes name, color as arguments

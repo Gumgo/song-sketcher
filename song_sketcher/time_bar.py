@@ -1,8 +1,8 @@
-import constants
-import drawing
-from units import *
-import widget
-import widget_event
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_event
 
 class TimeBarWidget(widget.WidgetWithSize):
     _COLOR = (0.25, 0.25, 0.75, 1.0)

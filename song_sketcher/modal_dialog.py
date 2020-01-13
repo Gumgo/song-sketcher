@@ -1,9 +1,9 @@
-import constants
-import drawing
-import timer
-from units import *
-import widget
-import widget_manager
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher import timer
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_manager
 
 _active_modal_count = 0
 _background_widget = None

@@ -2,7 +2,7 @@ import json
 import os
 import pathlib
 
-import engine
+from song_sketcher import engine
 
 PROJECT_FILENAME = "project.json"
 

@@ -1,8 +1,8 @@
-import constants
-import drawing
-import modal_dialog
-from units import *
-import widget
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher import modal_dialog
+from song_sketcher.units import *
+from song_sketcher import widget
 
 class EditTrackDialog:
     # on_accept_func takes name as argument

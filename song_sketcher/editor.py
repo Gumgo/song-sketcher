@@ -1,22 +1,22 @@
-import constants
-import dialogs.load_project_dialog
-import dialogs.new_project_dialog
-import dialogs.save_project_as_dialog
-import dialogs.settings_dialog
-import drawing
-import engine
-import history_manager
-import library
-import modal_dialog
-import project
-import project_manager
-import settings
-import song_timing
-import timeline
-import timer
-from units import *
-import widget
-import widget_manager
+from song_sketcher import constants
+from song_sketcher.dialogs import load_project_dialog
+from song_sketcher.dialogs import new_project_dialog
+from song_sketcher.dialogs import save_project_as_dialog
+from song_sketcher.dialogs import settings_dialog
+from song_sketcher import drawing
+from song_sketcher import engine
+from song_sketcher import history_manager
+from song_sketcher import library
+from song_sketcher import modal_dialog
+from song_sketcher import project
+from song_sketcher import project_manager
+from song_sketcher import settings
+from song_sketcher import song_timing
+from song_sketcher import timeline
+from song_sketcher import timer
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_manager
 
 class Constants:
     # Don't make this static because we can't initialize some values (e.g. points) until units are initialized
@@ -209,14 +209,14 @@ class Editor:
     def _new_project_button_clicked(self):
         def on_save_complete(success):
             if success:
-                dialogs.new_project_dialog.NewProjectDialog(self._root_stack_widget, self._load_project)
+                new_project_dialog.NewProjectDialog(self._root_stack_widget, self._load_project)
 
         self._ask_to_save_pending_changes(on_save_complete)
 
     def _load_project_button_clicked(self):
         def on_save_complete(success):
             if success:
-                dialogs.load_project_dialog.LoadProjectDialog(self._root_stack_widget, self._load_project)
+                load_project_dialog.LoadProjectDialog(self._root_stack_widget, self._load_project)
 
         self._ask_to_save_pending_changes(on_save_complete)
 
@@ -229,10 +229,10 @@ class Editor:
             self._history_manager.clear_save_state()
             self._save_project()
 
-        dialogs.save_project_as_dialog.SaveProjectAsDialog(self._root_stack_widget, on_name_chosen)
+        save_project_as_dialog.SaveProjectAsDialog(self._root_stack_widget, on_name_chosen)
 
     def _settings_button_clicked(self):
-        dialogs.settings_dialog.SettingsDialog(self._root_stack_widget)
+        settings_dialog.SettingsDialog(self._root_stack_widget)
 
     def _quit_button_clicked(self):
         if self._is_playing:

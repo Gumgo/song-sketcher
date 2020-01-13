@@ -1,8 +1,8 @@
-import drawing
-import modal_dialog
-import project_manager
-from units import *
-import widget
+from song_sketcher import drawing
+from song_sketcher import modal_dialog
+from song_sketcher import project_manager
+from song_sketcher.units import *
+from song_sketcher import widget
 
 class SaveProjectAsDialog:
     def __init__(self, stack_widget, on_name_chosen_func):
