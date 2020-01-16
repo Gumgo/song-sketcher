@@ -100,7 +100,7 @@ class Timeline:
         return self._time_bar.sample
 
     def set_playback_sample_index(self, sample):
-        self._time_bar.sample = min(max(float(sample), self._time_bar.min_sample), self._time_bar.max_sample)
+        self._time_bar.sample = sample
 
     def _layout_widgets(self, animate = True):
         self._tracks_layout.clear_children()
@@ -399,7 +399,7 @@ class Timeline:
         self._time_bar.end_sample = self._time_bar.start_sample + time_bar_width_samples
         self._time_bar.min_sample = 0.0
         self._time_bar.max_sample = song_length_measures * samples_per_measure
-        self._time_bar.sample = min(max(self._time_bar.sample, self._time_bar.min_sample), self._time_bar.max_sample)
+        self._time_bar.sample = self._time_bar.sample # The setter performs min/max clamping
 
 def _get_measure_padding():
     return points(4.0)

@@ -1,5 +1,3 @@
-# $TODO have an option to snap to pixels, default True
-
 SNAP_TO_PIXELS = True
 
 _dpi = None
