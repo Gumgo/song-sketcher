@@ -98,7 +98,7 @@ class Project:
 
         folder = pathlib.Path(os.path.dirname(path))
         for clip in self.clips:
-            engine.save_clip(clip.id, str(folder / "{}.wav".format(clip.id)))
+            engine.save_clip(clip.engine_clip, str(folder / "{}.wav".format(clip.id)))
 
     def load(self, path):
         with open(str(path), "r") as file:

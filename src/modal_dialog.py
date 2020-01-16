@@ -50,6 +50,8 @@ def show_modal_dialog(stack_widget, layout_widget):
     dialog_height = dialog_background.height.value
     dialog_end_y = dialog_background.y.value
     dialog_start_y = dialog_end_y - (widget_manager.get().display_size[1] + dialog_height) * 0.5
+    if SNAP_TO_PIXELS:
+        dialog_start_y = float(round(dialog_start_y))
 
     if create_background:
         stack_widget.push_child(_background_widget)

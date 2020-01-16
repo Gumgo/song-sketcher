@@ -1,6 +1,6 @@
 # $TODO have an option to snap to pixels, default True
 
-_SNAP_TO_PIXELS = False
+SNAP_TO_PIXELS = True
 
 _dpi = None
 
@@ -10,14 +10,14 @@ def initialize(dpi):
 
 def inches(x):
     assert _dpi is not None
-    if _SNAP_TO_PIXELS:
-        return round(x * _dpi)
+    if SNAP_TO_PIXELS:
+        return float(round(x * _dpi))
     else:
         return x * _dpi
 
 def points(x):
     assert _dpi is not None
-    if _SNAP_TO_PIXELS:
-        return round(x * _dpi / 72.0)
+    if SNAP_TO_PIXELS:
+        return float(round(x * _dpi / 72.0))
     else:
         return x * _dpi / 72.0

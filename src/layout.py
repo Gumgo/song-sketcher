@@ -1,5 +1,7 @@
 from enum import Enum
 
+from units import *
+
 class LayoutRect:
     def __init__(self, position = None, size = None):
         self.position = [0.0, 0.0] if position is None else [x for x in position]
@@ -70,12 +72,15 @@ class StackedLayout:
         total_weight = 1.0 if total_weight == 0.0 else total_weight
         total_weighted_size = max(0.0, parent_rect.size[direction_index] - total_absolute_size)
 
+        weighted_sizes = [total_weighted_size * entry.weight / total_weight for entry in entries]
+        sizes = [a + w for a, w in zip(absolute_sizes, weighted_sizes)]
+        if SNAP_TO_PIXELS:
+            sizes = _snap_sizes_to_pixels(sizes)
+
         offset = parent_rect.position[direction_index] + self._margin[direction_index]
         alt_offset = parent_rect.position[alt_direction_index] + self._margin[alt_direction_index]
         alt_size = parent_rect.size[alt_direction_index] - self._margin[alt_direction_index] - self._margin[alt_direction_index + 2]
-        for entry, absolute_size in zip(entries, absolute_sizes):
-            size = absolute_size + (total_weighted_size * entry.weight / total_weight)
-
+        for entry, size in zip(entries, sizes):
             entry.rect.position[direction_index] = offset
             entry.rect.position[1 - direction_index] = alt_offset
             entry.rect.size[direction_index] = size
@@ -159,9 +164,13 @@ class GridLayout:
 
         column_weight_multiplier = total_weighted_width / total_column_weight
         column_sizes = [x + self._column_weights.get(i, 0.0) * column_weight_multiplier for i, x in enumerate(absolute_column_sizes)]
+        if SNAP_TO_PIXELS:
+            column_sizes = _snap_sizes_to_pixels(column_sizes)
 
         row_weight_multiplier = total_weighted_height / total_row_weight
         row_sizes = [x + self._row_weights.get(i, 0.0) * row_weight_multiplier for i, x in enumerate(absolute_row_sizes)]
+        if SNAP_TO_PIXELS:
+            row_sizes = _snap_sizes_to_pixels(row_sizes)
 
         offset_x = parent_rect.position[0] + self._margin[0]
         column_xs = [0.0] * column_count
@@ -209,3 +218,17 @@ class GridLayout:
             absolute_row_sizes[entry.row] = max(absolute_row_sizes[entry.row], size[1])
 
         return (absolute_column_sizes, absolute_row_sizes)
+
+def _snap_sizes_to_pixels(sizes):
+    offsets = []
+    offset = 0.0
+    for x in sizes:
+        offsets.append(offset)
+        offset += x
+    offsets.append(offset)
+    offsets = [float(round(x)) for x in offsets]
+
+    snapped_sizes = []
+    for i in range(len(sizes)):
+        snapped_sizes.append(offsets[i + 1] - offsets[i])
+    return snapped_sizes

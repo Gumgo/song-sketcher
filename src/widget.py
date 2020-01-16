@@ -103,6 +103,10 @@ class Widget:
             VerticalPlacement.BOTTOM: layout_position[1]
         }[vertical_placement]
 
+        if SNAP_TO_PIXELS:
+            self.x.value = float(round(self.x.value))
+            self.y.value = float(round(self.y.value))
+
     # Can be overridden
     def get_widget_for_point(self, parent_transform, x, y):
         return None
@@ -144,6 +148,10 @@ class WidgetWithSize(Widget):
 
         self.width.value = layout_size[0] if horizontal_placement is HorizontalPlacement.FILL else desired_size[0]
         self.height.value = layout_size[1] if vertical_placement is VerticalPlacement.FILL else desired_size[1]
+
+        if SNAP_TO_PIXELS:
+            self.x.value = float(round(self.x.value))
+            self.y.value = float(round(self.y.value))
 
     def get_widget_for_point(self, parent_transform, x, y):
         transform = parent_transform * self.get_transform()
