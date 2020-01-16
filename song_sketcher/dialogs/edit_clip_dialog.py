@@ -5,6 +5,7 @@ import math
 from song_sketcher import modal_dialog
 from song_sketcher import settings
 from song_sketcher import song_timing
+from song_sketcher import time_bar
 from song_sketcher import timer
 from song_sketcher.units import *
 from song_sketcher import waveform_texture
@@ -12,6 +13,10 @@ from song_sketcher import widget
 
 _LATEST_WAVEFORM_SAMPLES_COUNT = 128
 _MAX_WAVEFORM_SAMPLES = 1024
+
+# $TODO allow re-recording of clips
+# $TODO allow cropping of clips
+# $TODO improve the waveform texture to be a 2D texture containing (min,max) sample height instead of just one value
 
 class EditClipDialog:
     # on_accept_func takes name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip as arguments
@@ -54,6 +59,14 @@ class EditClipDialog:
 
         layout.add_padding(points(12.0))
 
+        self._time_bar = time_bar.TimeBarWidget()
+        layout.add_child(self._time_bar, horizontal_placement = widget.HorizontalPlacement.CENTER)
+        self._time_bar.desired_width = inches(8.0) - _get_waveform_border_thickness() * 2.0
+        self._time_bar.desired_height = points(20.0)
+        self._time_bar.on_sample_changed_func = self._on_time_bar_sample_changed
+
+        layout.add_padding(points(4.0))
+
         self._waveform_viewer = WaveformWidget()
         layout.add_child(self._waveform_viewer)
         self._waveform_viewer.desired_width = inches(8.0)
@@ -89,7 +102,7 @@ class EditClipDialog:
         buttons_layout.add_child(self._stop_button)
         self._stop_button.icon_name = "stop"
         self._stop_button.action_func = self._stop
-        self._stop_button.set_enabled(clip is not None, False) # $TODO you can click this anytime and it returns the cursor to the start
+        self._stop_button.set_enabled(clip is not None, False)
 
         buttons_layout.add_padding(points(4.0))
 
@@ -127,6 +140,9 @@ class EditClipDialog:
         self._recording_updater = None
         self._is_playing = False
         self._playback_updater = None
+        self._last_clicked_sample_index = None
+
+        self._update_time_bar()
 
         self._destroy_func = modal_dialog.show_modal_dialog(stack_widget, layout)
 
@@ -174,6 +190,7 @@ class EditClipDialog:
             self._stop_button.set_enabled(False)
             self._accept_button.set_enabled(False)
             self._reject_button.set_enabled(False)
+            self._update_time_bar()
         else:
             engine.stop_recording_clip()
             self._is_recording = False
@@ -185,6 +202,7 @@ class EditClipDialog:
             self._stop_button.set_enabled(True)
             self._accept_button.set_enabled(True)
             self._reject_button.set_enabled(True)
+            self._update_time_bar()
 
             self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(self._engine_clip, _MAX_WAVEFORM_SAMPLES))
 
@@ -223,7 +241,7 @@ class EditClipDialog:
             engine.start_playback(
                 s.output_device_index,
                 s.frames_per_buffer,
-                0) # $TODO start index
+                int(self._time_bar.sample))
             self._is_playing = True
             self._playback_updater = timer.Updater(self._playback_update)
 
@@ -244,7 +262,12 @@ class EditClipDialog:
         if self._is_playing:
             self._play_pause()
             assert not self._is_playing
-            # $TODO restore cursor back to last clicked mouse position
+
+        if self._time_bar.sample == self._last_clicked_sample_index:
+            self._time_bar.sample = 0.0
+            self._last_clicked_sample_index = None
+        else:
+            self._time_bar.sample = self._last_clicked_sample_index or 0.0
 
     def _get_metronome_icon(self):
         return "metronome" if settings.get().recording_metronome_enabled else "metronome_disabled"
@@ -352,7 +375,8 @@ class EditClipDialog:
         self._waveform_viewer.set_waveform_samples(engine.get_latest_recorded_samples(_LATEST_WAVEFORM_SAMPLES_COUNT))
 
     def _playback_update(self, dt):
-        # $TODO update time bar graphics
+        playback_sample_index = engine.get_playback_sample_index()
+        self._time_bar.sample = playback_sample_index
 
         engine_clip = self._engine_clip
         if engine_clip is None:
@@ -362,8 +386,45 @@ class EditClipDialog:
         assert engine_clip is not None
 
         # Stop playback if we reach the end
-        if engine.get_playback_sample_index() >= engine.get_clip_sample_count(engine_clip):
+        if playback_sample_index >= engine.get_clip_sample_count(engine_clip):
             self._stop()
+
+    def _update_time_bar(self):
+        if self._is_recording or (self._engine_clip is None and self._clip is None):
+            self._time_bar.set_enabled(False)
+            self._time_bar.sample = None
+            self._last_clicked_sample_index = None
+        else:
+            self._time_bar.set_enabled(True)
+
+            engine_clip = self._engine_clip
+            if engine_clip is None:
+                assert self._clip is not None
+                engine_clip = self._clip.engine_clip
+
+            sample_count = engine.get_clip_sample_count(engine_clip)
+            self._time_bar.end_sample = float(sample_count)
+            self._time_bar.max_sample = float(sample_count)
+            if self._time_bar.sample is None:
+                self._time_bar.sample = 0.0
+
+    def _on_time_bar_sample_changed(self):
+        sample_index = self._time_bar.sample
+        self._last_clicked_sample_index = sample_index
+
+        if self._is_playing:
+            s = settings.get()
+            assert s.output_device_index is not None # Should not have changed
+
+            # Stopping and starting the stream at the new position should be good enough
+            engine.stop_playback()
+            engine.start_playback(
+                s.output_device_index,
+                s.frames_per_buffer,
+                int(sample_index))
+
+def _get_waveform_border_thickness():
+    return points(2.0)
 
 class WaveformWidget(widget.WidgetWithSize):
     _BACKGROUND_COLOR = (0.25, 0.25, 0.25, 1.0)
@@ -409,5 +470,5 @@ class WaveformWidget(widget.WidgetWithSize):
                 self._waveform_texture.waveform_texture,
                 self._BACKGROUND_COLOR,
                 self._WAVEFORM_COLOR,
-                border_thickness = points(2.0),
+                border_thickness = _get_waveform_border_thickness(),
                 border_color = constants.Color.BLACK)

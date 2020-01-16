@@ -56,7 +56,7 @@ class SongSketcher:
         dt = 1.0 / float(fps)
         clock = pygame.time.Clock()
 
-        while not self._quit:
+        while not self._editor.should_quit():
             clock.tick(fps)
 
             parameter.update(dt)
@@ -66,8 +66,9 @@ class SongSketcher:
             widget_manager.get().begin_process_events()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    self._quit = True # $TODO We should route this to the editor instead
-                widget_manager.get().process_event(event)
+                    self._editor.request_quit()
+                else:
+                    widget_manager.get().process_event(event)
 
             self._editor.update(dt)
 

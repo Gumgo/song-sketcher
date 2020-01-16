@@ -33,6 +33,7 @@ class Editor:
         self._project_name = None
         self._project = None
         self._history_manager = None
+        self._quit = False
 
         self._constants = Constants()
 
@@ -67,6 +68,19 @@ class Editor:
 
     def update(self, dt):
         pass
+
+    def should_quit(self):
+        return self._quit
+
+    def request_quit(self):
+        if self._is_playing:
+            self._stop()
+
+        def on_save_complete(success):
+            if success:
+                self._quit = True
+
+        self._ask_to_save_pending_changes(on_save_complete)
 
     def _build_file_menu_widget(self):
         background = widget.BackgroundWidget()
@@ -235,14 +249,7 @@ class Editor:
         settings_dialog.SettingsDialog(self._root_stack_widget)
 
     def _quit_button_clicked(self):
-        if self._is_playing:
-            self._stop()
-
-        def on_save_complete(success):
-            if success:
-                exit(0) # $TODO do better than this
-
-        self._ask_to_save_pending_changes(on_save_complete)
+        self.request_quit()
 
     def _close_project(self):
         if self._history_manager is not None:

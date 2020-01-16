@@ -15,11 +15,33 @@ class TimeBarWidget(widget.WidgetWithSize):
         self.end_sample = 0.0
         self.min_sample = 0.0
         self.max_sample = 0.0
-        self.sample = 0.0
         self.on_sample_changed_func = None
+        self._sample = 0.0
+        self._enabled = True
         self._pressed = False
 
+    @property
+    def sample(self):
+        return self._sample
+
+    @sample.setter
+    def sample(self, sample):
+        if sample is None:
+            self._sample = None
+        else:
+            self._sample = min(max(float(sample), self.min_sample), self.max_sample)
+
+    def set_enabled(self, enabled):
+        self._enabled = enabled
+        if not enabled:
+            self._pressed = False
+            self.release_capture()
+            self.release_focus()
+
     def process_event(self, event):
+        if not self._enabled:
+            return False
+
         result = False
         update_sample = False
         if isinstance(event, widget_event.MouseEvent):
@@ -65,14 +87,15 @@ class TimeBarWidget(widget.WidgetWithSize):
                 border_thickness = points(1.0),
                 border_color = constants.Color.BLACK)
 
-            with drawing.scissor(0.0, 0.0, self.width.value, self.height.value, transform = transform):
-                x = self.width.value * self._sample_ratio()
-                drawing.draw_rectangle(
-                    x - points(0.5),
-                    0.0,
-                    x + points(0.5),
-                    self.height.value,
-                    constants.Color.BLACK)
+            if self.sample is not None:
+                with drawing.scissor(0.0, 0.0, self.width.value, self.height.value, transform = transform):
+                    x = self.width.value * self._sample_ratio()
+                    drawing.draw_rectangle(
+                        x - points(0.5),
+                        0.0,
+                        x + points(0.5),
+                        self.height.value,
+                        constants.Color.BLACK)
 
     def _sample_ratio(self):
         if self.start_sample == self.end_sample:
