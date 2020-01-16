@@ -935,6 +935,7 @@ class ButtonWidget(WidgetWithSize):
         self._pressed = False
         self._state = self._State.DEFAULT
         self._color = parameter.AnimatableParameter(constants.Color.WHITE)
+        self._internal_action_func = None # For Checkbox
 
     @property
     def color(self):
@@ -972,8 +973,11 @@ class ButtonWidget(WidgetWithSize):
                 self.release_capture()
                 if self._pressed:
                     self._pressed = False
-                    if self.is_under_mouse and self.action_func is not None:
-                        self.action_func()
+                    if self.is_under_mouse:
+                        if self._internal_action_func is not None:
+                            self._internal_action_func()
+                        if self.action_func is not None:
+                            self.action_func()
                 result = True
         elif isinstance(event, widget_event.MouseEnterEvent) or isinstance(event, widget_event.MouseLeaveEvent):
             result = True
@@ -1065,6 +1069,57 @@ class IconButtonWidget(ButtonWidget):
                 self.width.value,
                 self.height.value,
                 self._color.value)
+
+class CheckboxWidget(ButtonWidget):
+    def __init__(self):
+        super().__init__()
+        self.desired_width = points(20.0)
+        self.desired_height = points(20.0)
+        self.color = (0.9, 0.9, 0.9, 1.0)
+        self._checked = False
+        self._checked_phase = parameter.AnimatableParameter(0.0)
+        self._internal_action_func = lambda: self.set_checked(not self.checked)
+
+    @property
+    def checked(self):
+        return self._checked
+
+    def set_checked(self, checked, animate = True):
+        if checked != self._checked:
+            self._checked = checked
+            if animate:
+                self._checked_phase.transition().target(1.0 if checked else 0.0).duration(0.125).ease_out()
+            else:
+                self._checked_phase.value = 1.0 if checked else 0.0
+
+    def get_desired_size(self):
+        return (self.desired_width, self.desired_height)
+
+    def draw_visible(self, parent_transform):
+        transform = parent_transform * self.get_transform()
+        with transform:
+            drawing.draw_rectangle(
+                0.0,
+                0.0,
+                self.width.value,
+                self.height.value,
+                self._color.value,
+                border_thickness = points(1.0),
+                border_color = constants.Color.BLACK,
+                radius = points(8.0))
+
+            phase = self._checked_phase.value
+            if phase > 0.0:
+                check_size = 0.5
+                check_width = self.width.value * check_size * phase
+                check_height = self.height.value * check_size * phase
+                drawing.draw_rectangle(
+                    (self.width.value - check_width) * 0.5,
+                    (self.height.value - check_height) * 0.5,
+                    (self.width.value + check_width) * 0.5,
+                    (self.height.value + check_height) * 0.5,
+                    constants.Color.BLACK,
+                    radius = points(8.0) * check_size * phase)
 
 class DropdownWidget(WidgetWithSize):
     class _State(Enum):

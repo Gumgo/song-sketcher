@@ -31,7 +31,12 @@ class TimeBarWidget(widget.WidgetWithSize):
         else:
             self._sample = min(max(float(sample), self.min_sample), self.max_sample)
 
-    def set_enabled(self, enabled):
+    @property
+    def enabled(self):
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, enabled):
         self._enabled = enabled
         if not enabled:
             self._pressed = False

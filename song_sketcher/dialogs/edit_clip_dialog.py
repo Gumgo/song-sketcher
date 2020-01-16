@@ -1,3 +1,5 @@
+from enum import Enum
+
 from song_sketcher import constants
 from song_sketcher import drawing
 from song_sketcher import engine
@@ -10,6 +12,7 @@ from song_sketcher import timer
 from song_sketcher.units import *
 from song_sketcher import waveform_texture
 from song_sketcher import widget
+from song_sketcher import widget_event
 
 _LATEST_WAVEFORM_SAMPLES_COUNT = 128
 _MAX_WAVEFORM_SAMPLES = 1024
@@ -73,8 +76,48 @@ class EditClipDialog:
         self._waveform_viewer.desired_height = inches(2.0)
         if clip is None:
             self._waveform_viewer.set_waveform_samples([0.0])
+            self._waveform_viewer.sample_count = 0
+            self._waveform_viewer.enabled = False
         else:
             self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(clip.engine_clip, _MAX_WAVEFORM_SAMPLES))
+            self._waveform_viewer.sample_count = clip.sample_count
+            self._waveform_viewer.start_sample_index = clip.start_sample_index
+            self._waveform_viewer.end_sample_index = clip.end_sample_index
+
+        layout.add_padding(points(12.0))
+
+        measures_layout = widget.HStackedLayoutWidget()
+        layout.add_child(measures_layout)
+
+        # $TODO make this all work
+
+        self._intro_checkbox = widget.CheckboxWidget()
+        measures_layout.add_child(self._intro_checkbox, vertical_placement = widget.VerticalPlacement.MIDDLE)
+
+        measures_layout.add_padding(points(4.0))
+
+        intro_text = widget.TextWidget()
+        measures_layout.add_child(intro_text, horizontal_placement = widget.HorizontalPlacement.LEFT, vertical_placement = widget.VerticalPlacement.MIDDLE)
+        intro_text.text = "Intro measure"
+        intro_text.horizontal_alignment = drawing.HorizontalAlignment.LEFT
+        intro_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
+
+        self._measures_text = widget.TextWidget()
+        measures_layout.add_child(self._measures_text, weight = 1.0, vertical_placement = widget.VerticalPlacement.MIDDLE)
+        self._measures_text.text = "Measures: <TODO>"
+        self._measures_text.horizontal_alignment = drawing.HorizontalAlignment.CENTER
+        self._measures_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
+
+        outro_text = widget.TextWidget()
+        measures_layout.add_child(outro_text, horizontal_placement = widget.HorizontalPlacement.RIGHT, vertical_placement = widget.VerticalPlacement.MIDDLE)
+        outro_text.text = "Outro measure"
+        outro_text.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
+        outro_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
+
+        measures_layout.add_padding(points(4.0))
+
+        self._outro_checkbox = widget.CheckboxWidget()
+        measures_layout.add_child(self._outro_checkbox, vertical_placement = widget.VerticalPlacement.MIDDLE)
 
         layout.add_padding(points(12.0))
 
@@ -191,6 +234,8 @@ class EditClipDialog:
             self._accept_button.set_enabled(False)
             self._reject_button.set_enabled(False)
             self._update_time_bar()
+
+            self._waveform_viewer.enabled = False
         else:
             engine.stop_recording_clip()
             self._is_recording = False
@@ -205,6 +250,10 @@ class EditClipDialog:
             self._update_time_bar()
 
             self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(self._engine_clip, _MAX_WAVEFORM_SAMPLES))
+            self._waveform_viewer.sample_count = engine.get_clip_sample_count(self._engine_clip)
+            self._waveform_viewer.start_sample_index = 0
+            self._waveform_viewer.end_sample_index = self._waveform_viewer.sample_count
+            self._waveform_viewer.enabled = True
 
     def _play_pause(self):
         if not self._is_playing:
@@ -225,9 +274,10 @@ class EditClipDialog:
                     None)
                 return
 
-            sample_count = engine.get_clip_sample_count(engine_clip)
+            start_sample_index = self._waveform_viewer.start_sample_index
+            end_sample_index = self._waveform_viewer.end_sample_index
             engine.playback_builder_begin()
-            engine.playback_builder_add_clip(engine_clip, 0, sample_count, 0)
+            engine.playback_builder_add_clip(engine_clip, start_sample_index, end_sample_index, start_sample_index)
             engine.playback_builder_finalize()
 
             if s.recording_metronome_enabled:
@@ -247,7 +297,7 @@ class EditClipDialog:
 
             if self._clip is None:
                 self._record_button.set_enabled(False)
-            self._play_pause_button.icon = "pause"
+            self._play_pause_button.icon_name = "pause"
         else:
             engine.stop_playback()
             self._is_playing = False
@@ -256,7 +306,7 @@ class EditClipDialog:
 
             if self._clip is None:
                 self._record_button.set_enabled(True)
-            self._play_pause_button.icon = "play"
+            self._play_pause_button.icon_name = "play"
 
     def _stop(self):
         if self._is_playing:
@@ -302,29 +352,17 @@ class EditClipDialog:
                 None)
             return
 
-        if self._clip is None:
-            if self._engine_clip is None:
-                sample_count = 0
-                start_sample_index = 0
-                end_sample_index = 0
-                measure_count = 0
-            else:
-                sample_count = engine.get_clip_sample_count(self._engine_clip)
-                start_sample_index = 0
-                end_sample_index = sample_count
-                measure_count = song_timing.get_measure_count(
-                    self._project.sample_rate,
-                    self._project.beats_per_minute,
-                    self._project.beats_per_measure,
-                    sample_count)
-                measure_count = max(0, math.ceil(measure_count) - 1) # Remove the intro measure
-                if measure_count > 1:
-                    measure_count -= 1 # Make the last measure into the outro
-        else:
-            sample_count = self._clip.sample_count
-            start_sample_index = self._clip.start_sample_index
-            end_sample_index = self._clip.end_sample_index
-            measure_count = self._clip.measure_count
+        sample_count = self._waveform_viewer.sample_count
+        start_sample_index = self._waveform_viewer.start_sample_index
+        end_sample_index = self._waveform_viewer.end_sample_index
+        measure_count = song_timing.get_measure_count(
+            self._project.sample_rate,
+            self._project.beats_per_minute,
+            self._project.beats_per_measure,
+            sample_count)
+        measure_count = max(0, math.ceil(measure_count) - 1) # Remove the intro measure
+        if measure_count > 1:
+            measure_count -= 1 # Make the last measure into the outro
 
         if sample_count == 0:
             modal_dialog.show_simple_modal_dialog(
@@ -373,6 +411,9 @@ class EditClipDialog:
 
     def _recording_update(self, dt):
         self._waveform_viewer.set_waveform_samples(engine.get_latest_recorded_samples(_LATEST_WAVEFORM_SAMPLES_COUNT))
+        self._waveform_viewer.sample_count = 0
+        self._waveform_viewer.start_sample_index = 0
+        self._waveform_viewer.end_sample_index = 0
 
     def _playback_update(self, dt):
         playback_sample_index = engine.get_playback_sample_index()
@@ -391,11 +432,11 @@ class EditClipDialog:
 
     def _update_time_bar(self):
         if self._is_recording or (self._engine_clip is None and self._clip is None):
-            self._time_bar.set_enabled(False)
+            self._time_bar.enabled = False
             self._time_bar.sample = None
             self._last_clicked_sample_index = None
         else:
-            self._time_bar.set_enabled(True)
+            self._time_bar.enabled = True
 
             engine_clip = self._engine_clip
             if engine_clip is None:
@@ -427,15 +468,37 @@ def _get_waveform_border_thickness():
     return points(2.0)
 
 class WaveformWidget(widget.WidgetWithSize):
+    class _EditMode(Enum):
+        START_SAMPLE_INDEX = 0
+        END_SAMPLE_INDEX = 1
+
     _BACKGROUND_COLOR = (0.25, 0.25, 0.25, 1.0)
+    _DISABLED_BACKGROUND_COLOR = drawing.darken_color(_BACKGROUND_COLOR, 0.5)
     _WAVEFORM_COLOR = (0.25, 0.25, 1.0, 1.0)
+    _DISABLED_WAVEFORM_COLOR = drawing.darken_color(_WAVEFORM_COLOR, 0.5)
 
     def __init__(self):
         super().__init__()
         self.desired_width = 0.0
         self.desired_height = 0.0
+        self.start_sample_index = 0
+        self.end_sample_index = 0
+        self._enabled = True
+        self._edit_mode = None
         self._waveform_texture = None
-        self._sample_count = 0
+        self._displayed_sample_count = 0
+
+    @property
+    def enabled(self):
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, enabled):
+        self._enabled = enabled
+        if not self._enabled:
+            self._edit_mode = None
+            self.release_capture()
+            self.release_focus()
 
     def destroy(self):
         if self._waveform_texture is not None:
@@ -445,16 +508,59 @@ class WaveformWidget(widget.WidgetWithSize):
     def set_waveform_samples(self, samples):
         if len(samples) == 0:
             samples = [0.0]
-        if self._waveform_texture is None or len(samples) != self._sample_count:
+        if self._waveform_texture is None or len(samples) != self._displayed_sample_count:
             if self._waveform_texture is not None:
                 self._waveform_texture.destroy()
             self._waveform_texture = waveform_texture.WaveformTexture(samples = samples)
         else:
             self._waveform_texture.update_samples(samples)
-        self._sample_count = len(samples)
+        self._displayed_sample_count = len(samples)
 
     def process_event(self, event):
-        return False
+        if not self._enabled:
+            return False
+
+        result = False
+        if isinstance(event, widget_event.MouseEvent):
+            x, y = self.get_full_transform().inverse().transform_point((event.x, event.y))
+            border_thickness = _get_waveform_border_thickness()
+            width_without_border = self.width.value - border_thickness * 2.0
+
+            if event.button is widget_event.MouseButton.LEFT:
+                if event.event_type is widget_event.MouseEventType.PRESS:
+                    start_x = border_thickness + (self.start_sample_index / self.sample_count) * width_without_border
+                    end_x = border_thickness + (self.end_sample_index / self.sample_count) * width_without_border
+
+                    drag_threshold = points(20.0)
+                    closest_dist = float("inf")
+                    start_dist = abs(x - start_x)
+                    end_dist = abs(x - end_x)
+
+                    if start_dist <= drag_threshold and start_dist < closest_dist:
+                        closest_dist = start_dist
+                        self._edit_mode = self._EditMode.START_SAMPLE_INDEX
+
+                    if end_dist <= drag_threshold and end_dist < closest_dist:
+                        closest_dist = end_dist
+                        self._edit_mode = self._EditMode.END_SAMPLE_INDEX
+
+                    self.capture()
+                    self.focus()
+                    result = True
+                elif event.event_type is widget_event.MouseEventType.RELEASE:
+                    self.release_capture()
+                    self._edit_mode = None
+                    result = True
+            elif event.event_type is widget_event.MouseEventType.MOVE:
+                result = True
+                sample_ratio = (x - border_thickness) / width_without_border
+                sample_index = min(max(round(self.sample_count * sample_ratio), 0), self.sample_count)
+                if self._edit_mode is self._EditMode.START_SAMPLE_INDEX:
+                    self.start_sample_index = min(sample_index, self.end_sample_index)
+                elif self._edit_mode is self._EditMode.END_SAMPLE_INDEX:
+                    self.end_sample_index = max(sample_index, self.start_sample_index)
+
+        return result
 
     def get_desired_size(self):
         return (self.desired_width, self.desired_height)
@@ -462,13 +568,34 @@ class WaveformWidget(widget.WidgetWithSize):
     def draw_visible(self, parent_transform):
         transform = parent_transform * self.get_transform()
         with transform:
-            drawing.draw_waveform(
-                0.0,
-                0.0,
-                self.width.value,
-                self.height.value,
-                self._waveform_texture.waveform_texture,
-                self._BACKGROUND_COLOR,
-                self._WAVEFORM_COLOR,
-                border_thickness = _get_waveform_border_thickness(),
-                border_color = constants.Color.BLACK)
+            def draw_waveform(background_color, color):
+                drawing.draw_waveform(
+                    0.0,
+                    0.0,
+                    self.width.value,
+                    self.height.value,
+                    self._waveform_texture.waveform_texture,
+                    background_color,
+                    color,
+                    border_thickness = _get_waveform_border_thickness(),
+                    border_color = constants.Color.BLACK)
+
+            pad = 10.0
+            active_start_x = -pad
+            active_end_x = self.width.value + pad
+
+            border_thickness = _get_waveform_border_thickness()
+            width_without_border = self.width.value - border_thickness * 2.0
+
+            if self.start_sample_index > 0:
+                active_start_x = border_thickness + (self.start_sample_index / self.sample_count) * width_without_border
+                with drawing.scissor(-pad, -pad, active_start_x, self.height.value + pad, transform = transform):
+                    draw_waveform(self._DISABLED_BACKGROUND_COLOR, self._DISABLED_WAVEFORM_COLOR)
+
+            if self.end_sample_index < self.sample_count:
+                active_end_x = border_thickness + (self.end_sample_index / self.sample_count) * width_without_border
+                with drawing.scissor(active_end_x, -pad, self.width.value + pad, self.height.value + pad, transform = transform):
+                    draw_waveform(self._DISABLED_BACKGROUND_COLOR, self._DISABLED_WAVEFORM_COLOR)
+
+            with drawing.scissor(active_start_x, -pad, active_end_x, self.height.value + pad, transform = transform):
+                draw_waveform(self._BACKGROUND_COLOR, self._WAVEFORM_COLOR)
