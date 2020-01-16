@@ -1,9 +1,9 @@
-import drawing
-import modal_dialog
-import transform
-import widget
-import widget_manager
-from units import *
+from song_sketcher import drawing
+from song_sketcher import modal_dialog
+from song_sketcher import transform
+from song_sketcher import widget
+from song_sketcher import widget_manager
+from song_sketcher.units import *
 
 class WidgetTests:
     def __init__(self, display_size):

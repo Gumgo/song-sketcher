@@ -1,13 +1,13 @@
-import constants
-import dialogs.edit_track_dialog
-import drawing
-import history_manager
-import project
-import song_timing
-import time_bar
-from units import *
-import widget
-import widget_event
+from song_sketcher import constants
+from song_sketcher.dialogs import edit_track_dialog
+from song_sketcher import drawing
+from song_sketcher import history_manager
+from song_sketcher import project
+from song_sketcher import song_timing
+from song_sketcher import time_bar
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_event
 
 _SONG_LENGTH_MEASURE_PADDING = 3
 
@@ -268,7 +268,7 @@ class Timeline:
             entry.redo_func = do
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_track_dialog.EditTrackDialog(self._root_stack_widget, None, on_accept, None)
+        edit_track_dialog.EditTrackDialog(self._root_stack_widget, None, on_accept, None)
 
     def _edit_track(self, track):
         def on_accept(name):
@@ -312,7 +312,7 @@ class Timeline:
             entry.redo_func = do
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_track_dialog.EditTrackDialog(self._root_stack_widget, track, on_accept, on_delete)
+        edit_track_dialog.EditTrackDialog(self._root_stack_widget, track, on_accept, on_delete)
 
     def _add_or_remove_measure(self, track, index):
         if index < len(track.measure_clip_ids):

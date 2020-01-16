@@ -1,6 +1,6 @@
 from enum import Enum
 
-from units import *
+from song_sketcher.units import *
 
 class LayoutRect:
     def __init__(self, position = None, size = None):

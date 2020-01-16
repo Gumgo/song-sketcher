@@ -1,15 +1,15 @@
 from enum import Enum
 import math
 
-import constants
-import drawing
-import layout
-import parameter
-import timer
-import transform
-from units import *
-import widget_event
-import widget_manager
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher import layout
+from song_sketcher import parameter
+from song_sketcher import timer
+from song_sketcher import transform
+from song_sketcher.units import *
+from song_sketcher import widget_event
+from song_sketcher import widget_manager
 
 class HorizontalPlacement(Enum):
     FILL = 0

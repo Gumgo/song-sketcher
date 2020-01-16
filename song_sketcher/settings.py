@@ -1,4 +1,4 @@
-import engine
+from song_sketcher import engine
 
 _settings = None
 

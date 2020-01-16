@@ -1,9 +1,9 @@
-import engine
-import drawing
-import modal_dialog
-import settings
-from units import *
-import widget
+from song_sketcher import engine
+from song_sketcher import drawing
+from song_sketcher import modal_dialog
+from song_sketcher import settings
+from song_sketcher.units import *
+from song_sketcher import widget
 
 class SettingsDialog:
     def __init__(self, stack_widget):

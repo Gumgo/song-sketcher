@@ -1,15 +1,15 @@
-import constants
-import drawing
-import engine
+from song_sketcher import constants
+from song_sketcher import drawing
+from song_sketcher import engine
 import math
-import modal_dialog
-import settings
-import song_timing
-import time_bar
-import timer
-from units import *
-import waveform_texture
-import widget
+from song_sketcher import modal_dialog
+from song_sketcher import settings
+from song_sketcher import song_timing
+from song_sketcher import time_bar
+from song_sketcher import timer
+from song_sketcher.units import *
+from song_sketcher import waveform_texture
+from song_sketcher import widget
 
 _LATEST_WAVEFORM_SAMPLES_COUNT = 128
 _MAX_WAVEFORM_SAMPLES = 1024

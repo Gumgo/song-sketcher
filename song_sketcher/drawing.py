@@ -1,11 +1,12 @@
 from enum import Enum
+import os
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-import font
-import icon
-import shader
+from song_sketcher import font
+from song_sketcher import icon
+from song_sketcher import shader
 
 _resource_registry = None
 
@@ -36,38 +37,38 @@ class _ResourceRegistry:
             self.icons[name] = icon
             return icon
 
-        self.rounded_rectangle_shader = add_shader(shader.Shader("shaders/rounded_rectangle.glsl"))
-        self.font_shader = add_shader(shader.Shader("shaders/font.glsl"))
-        self.icon_shader = add_shader(shader.Shader("shaders/icon.glsl"))
-        self.spinner_shader = add_shader(shader.Shader("shaders/spinner.glsl"))
-        self.waveform_shader = add_shader(shader.Shader("shaders/waveform.glsl"))
+        self.rounded_rectangle_shader = add_shader(shader.Shader(os.path.join("resources", "shaders", "rounded_rectangle.glsl")))
+        self.font_shader = add_shader(shader.Shader(os.path.join("resources", "shaders", "font.glsl")))
+        self.icon_shader = add_shader(shader.Shader(os.path.join("resources", "shaders", "icon.glsl")))
+        self.spinner_shader = add_shader(shader.Shader(os.path.join("resources", "shaders", "spinner.glsl")))
+        self.waveform_shader = add_shader(shader.Shader(os.path.join("resources", "shaders", "waveform.glsl")))
 
-        add_font("arial", font.Font("fonts/arial.json"))
+        add_font("arial", font.Font(os.path.join("resources", "fonts", "arial.json")))
 
-        add_icon("accept", icon.Icon("icons/accept.json"))
-        add_icon("reject", icon.Icon("icons/reject.json"))
-        add_icon("arrow_down", icon.Icon("icons/arrow_down.json"))
-        add_icon("arrow_up", icon.Icon("icons/arrow_up.json"))
+        add_icon("accept", icon.Icon(os.path.join("resources", "icons", "accept.json")))
+        add_icon("reject", icon.Icon(os.path.join("resources", "icons", "reject.json")))
+        add_icon("arrow_down", icon.Icon(os.path.join("resources", "icons", "arrow_down.json")))
+        add_icon("arrow_up", icon.Icon(os.path.join("resources", "icons", "arrow_up.json")))
 
-        add_icon("new", icon.Icon("icons/new.json"))
-        add_icon("load", icon.Icon("icons/load.json"))
-        add_icon("save", icon.Icon("icons/save.json"))
-        add_icon("save_as", icon.Icon("icons/save_as.json"))
-        add_icon("settings", icon.Icon("icons/settings.json"))
-        add_icon("quit", icon.Icon("icons/quit.json"))
+        add_icon("new", icon.Icon(os.path.join("resources", "icons", "new.json")))
+        add_icon("load", icon.Icon(os.path.join("resources", "icons", "load.json")))
+        add_icon("save", icon.Icon(os.path.join("resources", "icons", "save.json")))
+        add_icon("save_as", icon.Icon(os.path.join("resources", "icons", "save_as.json")))
+        add_icon("settings", icon.Icon(os.path.join("resources", "icons", "settings.json")))
+        add_icon("quit", icon.Icon(os.path.join("resources", "icons", "quit.json")))
 
-        add_icon("record", icon.Icon("icons/record.json"))
-        add_icon("play", icon.Icon("icons/play.json"))
-        add_icon("pause", icon.Icon("icons/pause.json"))
-        add_icon("stop", icon.Icon("icons/stop.json"))
-        add_icon("delete", icon.Icon("icons/delete.json"))
-        add_icon("metronome", icon.Icon("icons/metronome.json"))
-        add_icon("metronome_disabled", icon.Icon("icons/metronome_disabled.json"))
+        add_icon("record", icon.Icon(os.path.join("resources", "icons", "record.json")))
+        add_icon("play", icon.Icon(os.path.join("resources", "icons", "play.json")))
+        add_icon("pause", icon.Icon(os.path.join("resources", "icons", "pause.json")))
+        add_icon("stop", icon.Icon(os.path.join("resources", "icons", "stop.json")))
+        add_icon("delete", icon.Icon(os.path.join("resources", "icons", "delete.json")))
+        add_icon("metronome", icon.Icon(os.path.join("resources", "icons", "metronome.json")))
+        add_icon("metronome_disabled", icon.Icon(os.path.join("resources", "icons", "metronome_disabled.json")))
 
-        add_icon("undo", icon.Icon("icons/undo.json"))
-        add_icon("redo", icon.Icon("icons/redo.json"))
+        add_icon("undo", icon.Icon(os.path.join("resources", "icons", "undo.json")))
+        add_icon("redo", icon.Icon(os.path.join("resources", "icons", "redo.json")))
 
-        add_icon("plus", icon.Icon("icons/plus.json"))
+        add_icon("plus", icon.Icon(os.path.join("resources", "icons", "plus.json")))
 
     def shutdown(self):
         for shader in self._shaders:

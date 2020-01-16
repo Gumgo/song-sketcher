@@ -1,13 +1,13 @@
-import constants
-import dialogs.edit_category_dialog
-import dialogs.edit_clip_dialog
-import drawing
-import engine
-import history_manager
-import project
-from units import *
-import widget
-import widget_event
+from song_sketcher import constants
+from song_sketcher.dialogs import edit_category_dialog
+from song_sketcher.dialogs import edit_clip_dialog
+from song_sketcher import drawing
+from song_sketcher import engine
+from song_sketcher import history_manager
+from song_sketcher import project
+from song_sketcher.units import *
+from song_sketcher import widget
+from song_sketcher import widget_event
 
 class Library:
     def __init__(self, root_stack_widget, project, history_manager, update_tracks_func):
@@ -211,7 +211,7 @@ class Library:
             entry.redo_func = do
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_category_dialog.EditCategoryDialog(self._root_stack_widget, None, on_accept, None)
+        edit_category_dialog.EditCategoryDialog(self._root_stack_widget, None, on_accept, None)
 
     def _edit_category(self, category):
         def on_accept(name, color):
@@ -294,7 +294,7 @@ class Library:
             entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_category_dialog.EditCategoryDialog(self._root_stack_widget, category, on_accept, on_delete)
+        edit_category_dialog.EditCategoryDialog(self._root_stack_widget, category, on_accept, on_delete)
 
     def _add_clip(self, category):
         def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
@@ -332,7 +332,7 @@ class Library:
             entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, None, on_accept, None)
+        edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, None, on_accept, None)
 
     def _edit_clip(self, clip):
         def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
@@ -421,7 +421,7 @@ class Library:
             entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
-        dialogs.edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, clip, on_accept, on_delete)
+        edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, clip, on_accept, on_delete)
 
     def _select_clip(self, clip_id):
         if self._selected_clip_id is not None:

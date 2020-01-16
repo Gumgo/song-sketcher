@@ -1,3 +1,6 @@
 *.pyc
-/src/projects
-/src/profile_results.txt
+/song_sketcher/projects
+/song_sketcher/profile_results.txt
+
+engine/
+projects/

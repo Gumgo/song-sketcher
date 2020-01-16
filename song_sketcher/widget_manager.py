@@ -1,9 +1,9 @@
 import pygame
 from pygame.locals import *
 
-import timer
-import transform
-import widget_event
+from song_sketcher import timer
+from song_sketcher import transform
+from song_sketcher import widget_event
 
 # $TODO make a system to detect un-destroyed widgets which aren't part of any layout
 

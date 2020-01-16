@@ -3,15 +3,15 @@ from OpenGL.GLU import *
 import pygame
 from pygame.locals import *
 
-import drawing
-import editor
-import engine
-import parameter
-import project_manager
-import settings
-import timer
-import units
-import widget_manager
+from song_sketcher import drawing
+from song_sketcher import editor
+from song_sketcher import engine
+from song_sketcher import parameter
+from song_sketcher import project_manager
+from song_sketcher import settings
+from song_sketcher import timer
+from song_sketcher import units
+from song_sketcher import widget_manager
 
 class SongSketcher:
     def __init__(self):
