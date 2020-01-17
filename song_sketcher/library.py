@@ -297,15 +297,8 @@ class Library:
         edit_category_dialog.EditCategoryDialog(self._root_stack_widget, category, on_accept, on_delete)
 
     def _add_clip(self, category):
-        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
-            new_clip = project.Clip()
+        def on_accept(new_clip):
             new_clip.id = self._project.generate_clip_id()
-            new_clip.name = name
-            new_clip.sample_count = sample_count
-            new_clip.start_sample_index = start_sample_index
-            new_clip.end_sample_index = end_sample_index
-            new_clip.measure_count = measure_count
-            new_clip.engine_clip = engine_clip
             new_clip.category = category
 
             def do():
@@ -335,39 +328,65 @@ class Library:
         edit_clip_dialog.EditClipDialog(self._root_stack_widget, self._project, None, on_accept, None)
 
     def _edit_clip(self, clip):
-        def on_accept(name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip):
-            assert clip.sample_count == sample_count # Should not change when editing
-            assert clip.measure_count == measure_count # Should not change when editing
-            assert engine_clip is None # Should not change when editing (currently?)
+        def on_accept(edited_clip):
+            assert clip.measure_count == edited_clip.measure_count # Should not change when editing
 
-            if (name == clip.name
-                and start_sample_index == clip.start_sample_index
-                and end_sample_index == clip.end_sample_index):
+            if (edited_clip.name == clip.name
+                and edited_clip.sample_count == clip.sample_count
+                and edited_clip.start_sample_index == clip.start_sample_index
+                and edited_clip.end_sample_index == clip.end_sample_index
+                and edited_clip.has_intro == clip.has_intro
+                and edited_clip.has_outro == clip.has_outro
+                and edited_clip.engine_clip == clip.engine_clip):
                 return # Nothing changed
 
             old_name = clip.name
+            old_sample_count = clip.sample_count
             old_start_sample_index = clip.start_sample_index
             old_end_sample_index = clip.end_sample_index
+            old_has_intro = clip.has_intro
+            old_has_outro = clip.has_outro
+            old_engine_clip = clip.engine_clip
+
+            did_engine_clip_change = (edited_clip.engine_clip == clip.engine_clip)
 
             def do():
-                clip.name = name
-                clip.start_sample_index = start_sample_index
-                clip.end_sample_index = end_sample_index
+                clip.name = edited_clip.name
+                clip.sample_count = edited_clip.sample_count
+                clip.start_sample_index = edited_clip.start_sample_index
+                clip.end_sample_index = edited_clip.end_sample_index
+                clip.has_intro = edited_clip.has_intro
+                clip.has_outro = edited_clip.has_outro
+                clip.engine_clip = edited_clip.engine_clip
                 self._layout_widgets()
                 self._update_tracks_func()
 
             def undo():
                 clip.name = old_name
+                clip.sample_count = old_sample_count
                 clip.start_sample_index = old_start_sample_index
                 clip.end_sample_index = old_end_sample_index
+                clip.has_intro = old_has_intro
+                clip.has_outro = old_has_outro
+                clip.engine_clip = old_engine_clip
                 self._layout_widgets()
                 self._update_tracks_func()
+
+            def destroy(was_undone):
+                if did_engine_clip_change:
+                    if was_undone:
+                        # We undid the edit, so delete the re-recorded engine clip
+                        engine.delete_clip(edited_clip.engine_clip)
+                    else:
+                        # We're holding the last reference to the original engine clip, so delete it
+                        engine.delete_clip(old_engine_clip)
 
             do()
 
             entry = history_manager.Entry()
             entry.undo_func = undo
             entry.redo_func = do
+            entry.destroy_func = destroy
             self._history_manager.add_entry(entry)
 
         def on_delete():

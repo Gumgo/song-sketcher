@@ -30,6 +30,8 @@ class Clip:
         self.start_sample_index = 0     # The first sample we should start playing
         self.end_sample_index = 0       # The sample after the last sample played
         self.measure_count = 0          # The number of measures the clip spans NOT including the intro and outro
+        self.has_intro = False          # Whether the clip has an intro measure
+        self.has_outro = False          # Whether the clip has an outro measure
         self.engine_clip = None         # Audio clip data stored in the engine
 
         self.category = None            # Used for quick access to the category

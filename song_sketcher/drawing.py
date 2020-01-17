@@ -163,6 +163,8 @@ def lighten_color(color, lightness):
     return tuple([rgb[0], rgb[1], rgb[2], color[3]])
 
 def drawing_begin(viewport_width_pixels, viewport_height_pixels):
+    _mark_old_cached_text_data()
+
     glPushMatrix()
     glViewport(0, 0, viewport_width_pixels, viewport_height_pixels)
     gluOrtho2D(0.0, viewport_width_pixels, 0.0, viewport_height_pixels)
@@ -173,6 +175,8 @@ def drawing_begin(viewport_width_pixels, viewport_height_pixels):
 
 def drawing_end():
     glPopMatrix()
+
+    _clear_old_cached_text_data()
 
 def scissor(x1, y1, x2, y2, transform = None, merge = True):
     if transform is not None:
@@ -206,44 +210,82 @@ def draw_rectangle(
 
 # Returns (width, ascent, descent) where descent is negative
 def measure_text(text, font_name, size):
-    font_object = _resource_registry.fonts[font_name]
-    width = 0.0
-    x = 0.0
-    prev_character_code = None
-    for c in text:
-        character_code = ord(c)
-        if not font_object.has_glyph(character_code) and c != ' ':
-            character_code = font.MISSING_CHARACTER_CODE
+    text_data = _get_cached_text_data(text, font_name, size)
+    if text_data.width_ascent_descent is None:
+        font_object = _resource_registry.fonts[font_name]
+        width = 0.0
+        x = 0.0
+        prev_character_code = None
+        for c in text:
+            character_code = ord(c)
+            if not font_object.has_glyph(character_code) and c != ' ':
+                character_code = font.MISSING_CHARACTER_CODE
 
-        x += font_object.get_advance_ems(character_code)
-        width = max(width, x)
-        if prev_character_code is not None:
-            x += font_object.get_kerning_ems(prev_character_code, character_code)
+            x += font_object.get_advance_ems(character_code)
+            width = max(width, x)
+            if prev_character_code is not None:
+                x += font_object.get_kerning_ems(prev_character_code, character_code)
 
-        prev_character_code = character_code
+            prev_character_code = character_code
 
-    return (width * size, font_object.ascender_size_ems * size, font_object.descender_size_ems * size)
+        text_data.width_ascent_descent = (
+            width * size,
+            font_object.ascender_size_ems * size,
+            font_object.descender_size_ems * size
+        )
+    return text_data.width_ascent_descent
 
 def draw_text(text, font_name, size, x, y, horizontal_alignment, vertical_alignment, color):
     # Currently doesn't support multi-line text
-    shader = _resource_registry.font_shader
+    text_data = _get_cached_text_data(text, font_name, size)
+    if text_data.width_ascent_descent is None:
+        # Measuring the text will cache this data
+        measure_text(text, font_name, size)
+        assert text_data.width_ascent_descent
+
+    # Adjust our position so that (x,y) represents the left baseline of the first character
+    width, ascent, descent = text_data.width_ascent_descent
+    x += {
+        HorizontalAlignment.LEFT: 0.0,
+        HorizontalAlignment.CENTER: width * -0.5,
+        HorizontalAlignment.RIGHT: -width
+    }[horizontal_alignment]
+
+    y += {
+        VerticalAlignment.TOP: -ascent,
+        VerticalAlignment.MIDDLE: -0.5 * (descent + ascent), # Unfortunately we don't know cap height
+        VerticalAlignment.BASELINE: 0.0,
+        VerticalAlignment.BOTTOM: -descent
+    }[vertical_alignment]
+
     font_object = _resource_registry.fonts[font_name]
+    if text_data.vertex_data is None:
+        text_data.vertex_data = []
+        prev_character_code = None
+        x_offset = 0.0
+        for c in text:
+            character_code = ord(c)
+            if not font_object.has_glyph(character_code) and c != ' ':
+                character_code = font.MISSING_CHARACTER_CODE
+
+            x1 = x_offset - font_object.glyph_left_offset_ems * size
+            y1 = -font_object.glyph_baseline_offset_ems * size
+            x2 = x1 + font_object.glyph_width_ems * size
+            y2 = y1 + font_object.glyph_height_ems * size
+            glyph = font_object.glyphs[character_code]
+
+            if c != ' ':
+                text_data.vertex_data.append((x1, y1, glyph.u1, glyph.v1, x2, y2, glyph.u2, glyph.v2))
+
+            x_offset += font_object.get_advance_ems(character_code) * size
+            width = max(width, x)
+            if prev_character_code is not None:
+                x_offset += font_object.get_kerning_ems(prev_character_code, character_code) * size
+
+            prev_character_code = character_code
+
+    shader = _resource_registry.font_shader
     with shader.use():
-        # Adjust our position so that (x,y) represents the left baseline of the first character
-        width, ascent, descent = measure_text(text, font_name, size)
-        x += {
-            HorizontalAlignment.LEFT: 0.0,
-            HorizontalAlignment.CENTER: width * -0.5,
-            HorizontalAlignment.RIGHT: -width
-        }[horizontal_alignment]
-
-        y += {
-            VerticalAlignment.TOP: -ascent,
-            VerticalAlignment.MIDDLE: -0.5 * (descent + ascent), # Unfortunately we don't know cap height
-            VerticalAlignment.BASELINE: 0.0,
-            VerticalAlignment.BOTTOM: -descent
-        }[vertical_alignment]
-
         glEnable(GL_TEXTURE_2D)
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, font_object.glyph_texture)
@@ -251,27 +293,9 @@ def draw_text(text, font_name, size, x, y, horizontal_alignment, vertical_alignm
         glUniform1i(shader.loc("font_texture"), 0)
         glUniform1f(shader.loc("pxrange"), font_object.pxrange)
 
-        prev_character_code = None
-        for c in text:
-            character_code = ord(c)
-            if not font_object.has_glyph(character_code) and c != ' ':
-                character_code = font.MISSING_CHARACTER_CODE
-
-            x1 = x - font_object.glyph_left_offset_ems * size
-            y1 = y - font_object.glyph_baseline_offset_ems * size
-            x2 = x1 + font_object.glyph_width_ems * size
-            y2 = y1 + font_object.glyph_height_ems * size
-            glyph = font_object.glyphs[character_code]
-
-            if c != ' ':
-                _draw_textured_quad(x1, y1, glyph.u1, glyph.v1, x2, y2, glyph.u2, glyph.v2)
-
-            x += font_object.get_advance_ems(character_code) * size
-            width = max(width, x)
-            if prev_character_code is not None:
-                x += font_object.get_kerning_ems(prev_character_code, character_code) * size
-
-            prev_character_code = character_code
+        for vd in text_data.vertex_data:
+            x1, y1, u1, v1, x2, y2, u2, v2 = vd
+            _draw_textured_quad(x1 + x, y1 + y, u1, v1, x2 + x, y2 + y, u2, v2)
 
 def draw_icon(icon_name, x1, y1, x2, y2, color):
     shader = _resource_registry.icon_shader
@@ -349,3 +373,30 @@ def _get_rgba(color):
     else:
         assert len(color) == 4
         return color
+
+# Maps (text, font_name, size) -> _TextData
+_text_cache = {}
+
+class _TextData:
+    def __init__(self):
+        self.used_this_frame = True
+        self.width_ascent_descent = None
+        self.vertex_data = None
+
+def _get_cached_text_data(text, font_name, size):
+    key = (text, font_name, size)
+    text_data = _text_cache.get(key, None)
+    if text_data is None:
+        text_data = _TextData()
+        _text_cache[key] = text_data
+    text_data.used_this_frame = True
+    return text_data
+
+def _mark_old_cached_text_data():
+    for text_data in _text_cache.values():
+        text_data.used_this_frame = False
+
+def _clear_old_cached_text_data():
+    keys_to_delete = [k for k, v in _text_cache.items() if not v.used_this_frame]
+    for key in keys_to_delete:
+        _text_cache.pop(key)

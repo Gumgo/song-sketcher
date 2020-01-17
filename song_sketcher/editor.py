@@ -381,15 +381,18 @@ class Editor:
             # Build the playback clip
             engine.playback_builder_begin()
 
+            samples_per_measure = song_timing.get_samples_per_measure(
+                self._project.sample_rate,
+                self._project.beats_per_minute,
+                self._project.beats_per_measure)
             for track in self._project.tracks:
                 for i, clip_id in enumerate(track.measure_clip_ids):
                     if clip_id is not None:
                         clip = self._project.get_clip_by_id(clip_id)
-                        samples_per_measure = song_timing.get_samples_per_measure(
-                            self._project.sample_rate,
-                            self._project.beats_per_minute,
-                            self._project.beats_per_measure)
-                        playback_start_sample_index = round((i - 1) * samples_per_measure + clip.start_sample_index)
+                        measure_index = i
+                        if clip.has_intro:
+                            measure_index -= 1
+                        playback_start_sample_index = round(measure_index * samples_per_measure + clip.start_sample_index)
                         engine.playback_builder_add_clip(
                             clip.engine_clip,
                             clip.start_sample_index,
@@ -487,8 +490,8 @@ class Editor:
             self._library.set_enabled(not self._is_playing)
             self._timeline.set_enabled(not self._is_playing)
 
-            self._project_widgets.undo_button.set_enabled(self._history_manager.can_undo(), animate)
-            self._project_widgets.redo_button.set_enabled(self._history_manager.can_redo(), animate)
+            self._project_widgets.undo_button.set_enabled(self._history_manager.can_undo() and not self._is_playing, animate)
+            self._project_widgets.redo_button.set_enabled(self._history_manager.can_redo() and not self._is_playing, animate)
 
     def _playback_update(self, dt):
         playback_sample_index = engine.get_playback_sample_index()

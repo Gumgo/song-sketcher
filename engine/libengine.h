@@ -55,6 +55,10 @@ PyObject *start_recording_clip(PyObject *self, PyObject *args);
 // Stops the current recording
 PyObject *stop_recording_clip(PyObject *self);
 
+// Returns the number of samples that have been recorded
+// Returns: smaple_count
+PyObject *get_recorded_sample_count(PyObject *self);
+
 // Returns the n latest recorded samples
 // Arguments: sample_count
 // Returns: samples

@@ -23,6 +23,7 @@ PyMethodDef functions[] = {
     ENGINE_FUNCTION(delete_clip, METH_VARARGS),
     ENGINE_FUNCTION(start_recording_clip, METH_VARARGS),
     ENGINE_FUNCTION(stop_recording_clip, METH_NOARGS),
+    ENGINE_FUNCTION(get_recorded_sample_count, METH_NOARGS),
     ENGINE_FUNCTION(get_latest_recorded_samples, METH_VARARGS),
     ENGINE_FUNCTION(get_clip_sample_count, METH_VARARGS),
     ENGINE_FUNCTION(get_clip_samples, METH_VARARGS),

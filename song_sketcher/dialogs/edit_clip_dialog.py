@@ -5,6 +5,7 @@ from song_sketcher import drawing
 from song_sketcher import engine
 import math
 from song_sketcher import modal_dialog
+from song_sketcher import project
 from song_sketcher import settings
 from song_sketcher import song_timing
 from song_sketcher import time_bar
@@ -17,12 +18,10 @@ from song_sketcher import widget_event
 _LATEST_WAVEFORM_SAMPLES_COUNT = 128
 _MAX_WAVEFORM_SAMPLES = 1024
 
-# $TODO allow re-recording of clips
-# $TODO allow cropping of clips
 # $TODO improve the waveform texture to be a 2D texture containing (min,max) sample height instead of just one value
 
 class EditClipDialog:
-    # on_accept_func takes name, sample_count, start_sample_index, end_sample_index, measure_count, engine_clip as arguments
+    # on_accept_func takes a clip as its argument
     def __init__(self, stack_widget, project, clip, on_accept_func, on_delete_func):
         self._stack_widget = stack_widget
         self._project = project
@@ -89,10 +88,10 @@ class EditClipDialog:
         measures_layout = widget.HStackedLayoutWidget()
         layout.add_child(measures_layout)
 
-        # $TODO make this all work
-
         self._intro_checkbox = widget.CheckboxWidget()
         measures_layout.add_child(self._intro_checkbox, vertical_placement = widget.VerticalPlacement.MIDDLE)
+        self._intro_checkbox.set_checked(True if self._clip is None else self._clip.has_intro, False)
+        self._intro_checkbox.action_func = self._update_measures_text
 
         measures_layout.add_padding(points(4.0))
 
@@ -104,7 +103,6 @@ class EditClipDialog:
 
         self._measures_text = widget.TextWidget()
         measures_layout.add_child(self._measures_text, weight = 1.0, vertical_placement = widget.VerticalPlacement.MIDDLE)
-        self._measures_text.text = "Measures: <TODO>"
         self._measures_text.horizontal_alignment = drawing.HorizontalAlignment.CENTER
         self._measures_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
@@ -118,20 +116,21 @@ class EditClipDialog:
 
         self._outro_checkbox = widget.CheckboxWidget()
         measures_layout.add_child(self._outro_checkbox, vertical_placement = widget.VerticalPlacement.MIDDLE)
+        self._outro_checkbox.set_checked(True if self._clip is None else self._clip.has_outro, False)
+        self._outro_checkbox.action_func = self._update_measures_text
 
         layout.add_padding(points(12.0))
 
         buttons_layout = widget.HStackedLayoutWidget()
         layout.add_child(buttons_layout)
 
-        if clip is None:
-            self._record_button = widget.IconButtonWidget()
-            buttons_layout.add_child(self._record_button)
-            self._record_button.color = (0.75, 0.0, 0.0, 1.0)
-            self._record_button.icon_name = "record"
-            self._record_button.action_func = self._record
+        self._record_button = widget.IconButtonWidget()
+        buttons_layout.add_child(self._record_button)
+        self._record_button.color = (0.75, 0.0, 0.0, 1.0)
+        self._record_button.icon_name = "record"
+        self._record_button.action_func = self._record
 
-            buttons_layout.add_padding(points(4.0))
+        buttons_layout.add_padding(points(4.0))
 
         self._play_pause_button = widget.IconButtonWidget()
         buttons_layout.add_child(self._play_pause_button)
@@ -186,11 +185,11 @@ class EditClipDialog:
         self._last_clicked_sample_index = None
 
         self._update_time_bar()
+        self._update_measures_text()
 
         self._destroy_func = modal_dialog.show_modal_dialog(stack_widget, layout)
 
     def _record(self):
-        assert self._clip is None
         if not self._is_recording:
             s = settings.get()
             if s.input_device_index is None:
@@ -233,9 +232,13 @@ class EditClipDialog:
             self._stop_button.set_enabled(False)
             self._accept_button.set_enabled(False)
             self._reject_button.set_enabled(False)
+            self._intro_checkbox.set_enabled(False)
+            self._outro_checkbox.set_enabled(False)
             self._update_time_bar()
 
             self._waveform_viewer.enabled = False
+
+            self._update_measures_text()
         else:
             engine.stop_recording_clip()
             self._is_recording = False
@@ -247,6 +250,8 @@ class EditClipDialog:
             self._stop_button.set_enabled(True)
             self._accept_button.set_enabled(True)
             self._reject_button.set_enabled(True)
+            self._intro_checkbox.set_enabled(True)
+            self._outro_checkbox.set_enabled(True)
             self._update_time_bar()
 
             self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(self._engine_clip, _MAX_WAVEFORM_SAMPLES))
@@ -254,6 +259,8 @@ class EditClipDialog:
             self._waveform_viewer.start_sample_index = 0
             self._waveform_viewer.end_sample_index = self._waveform_viewer.sample_count
             self._waveform_viewer.enabled = True
+
+            self._update_measures_text()
 
     def _play_pause(self):
         if not self._is_playing:
@@ -295,8 +302,7 @@ class EditClipDialog:
             self._is_playing = True
             self._playback_updater = timer.Updater(self._playback_update)
 
-            if self._clip is None:
-                self._record_button.set_enabled(False)
+            self._record_button.set_enabled(False)
             self._play_pause_button.icon_name = "pause"
         else:
             engine.stop_playback()
@@ -304,8 +310,7 @@ class EditClipDialog:
             self._playback_updater.cancel()
             self._playback_updater = None
 
-            if self._clip is None:
-                self._record_button.set_enabled(True)
+            self._record_button.set_enabled(True)
             self._play_pause_button.icon_name = "play"
 
     def _stop(self):
@@ -355,14 +360,9 @@ class EditClipDialog:
         sample_count = self._waveform_viewer.sample_count
         start_sample_index = self._waveform_viewer.start_sample_index
         end_sample_index = self._waveform_viewer.end_sample_index
-        measure_count = song_timing.get_measure_count(
-            self._project.sample_rate,
-            self._project.beats_per_minute,
-            self._project.beats_per_measure,
-            sample_count)
-        measure_count = max(0, math.ceil(measure_count) - 1) # Remove the intro measure
-        if measure_count > 1:
-            measure_count -= 1 # Make the last measure into the outro
+        measure_count = self._calculate_measure_count(sample_count)
+        has_intro = self._intro_checkbox.checked
+        has_outro = self._outro_checkbox.checked
 
         if sample_count == 0:
             modal_dialog.show_simple_modal_dialog(
@@ -382,8 +382,32 @@ class EditClipDialog:
                 None)
             return
 
+        if self._clip is not None and measure_count != self._clip.measure_count:
+            modal_dialog.show_simple_modal_dialog(
+                self._stack_widget,
+                "Measure count changed",
+                "The measure count must not change when re-recording a clip.",
+                ["OK"],
+                None)
+            return
+
+        edited_clip = project.Clip()
+        edited_clip.name = name
+        edited_clip.sample_count = sample_count
+        edited_clip.start_sample_index = start_sample_index
+        edited_clip.end_sample_index = end_sample_index
+        edited_clip.measure_count = measure_count
+        edited_clip.has_intro = has_intro
+        edited_clip.has_outro = has_outro
+        if self._engine_clip is not None:
+            edited_clip.engine_clip = self._engine_clip
+        else:
+            # We would have already returned if both the engine clip and the clip were None
+            assert self._clip is not None
+            edited_clip.engine_clip = self._clip.engine_clip
+
         self._destroy_func()
-        self._on_accept_func(name, sample_count, start_sample_index, end_sample_index, measure_count, self._engine_clip)
+        self._on_accept_func(edited_clip)
 
     def _delete(self):
         assert not self._is_recording
@@ -409,11 +433,26 @@ class EditClipDialog:
 
         self._destroy_func()
 
+    def _calculate_measure_count(self, sample_count):
+        measure_count = math.ceil(
+            song_timing.get_measure_count(
+                self._project.sample_rate,
+                self._project.beats_per_minute,
+                self._project.beats_per_measure,
+                sample_count))
+        if self._intro_checkbox.checked:
+            measure_count = max(0, measure_count - 1)
+        if self._outro_checkbox.checked:
+            measure_count = max(0, measure_count - 1)
+        return measure_count
+
     def _recording_update(self, dt):
         self._waveform_viewer.set_waveform_samples(engine.get_latest_recorded_samples(_LATEST_WAVEFORM_SAMPLES_COUNT))
         self._waveform_viewer.sample_count = 0
         self._waveform_viewer.start_sample_index = 0
         self._waveform_viewer.end_sample_index = 0
+
+        self._update_measures_text()
 
     def _playback_update(self, dt):
         playback_sample_index = engine.get_playback_sample_index()
@@ -448,6 +487,19 @@ class EditClipDialog:
             self._time_bar.max_sample = float(sample_count)
             if self._time_bar.sample is None:
                 self._time_bar.sample = 0.0
+
+    def _update_measures_text(self):
+        if self._is_recording:
+            sample_count = engine.get_recorded_sample_count()
+        else:
+            sample_count = self._waveform_viewer.sample_count
+        measure_count = self._calculate_measure_count(sample_count)
+        self._measures_text.text = "Measures: {}".format(measure_count)
+
+        if measure_count == 0 or (self._clip is not None and measure_count != self._clip.measure_count):
+            self._measures_text.color.value = (0.75, 0.0, 0.0, 1.0)
+        else:
+            self._measures_text.color.value = constants.Color.BLACK
 
     def _on_time_bar_sample_changed(self):
         sample_index = self._time_bar.sample

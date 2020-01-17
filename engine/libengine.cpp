@@ -101,6 +101,7 @@ struct s_engine_state {
     // At time t, it takes n samples until the first metronome tick comes out the speakers (playback latency)
     // The sound data from time t+n is recorded m samples later (recording latency)
     // Therefore, we move the recording back in time by n+m samples by ignoring the first n+m samples
+    int32_t m_recording_playback_latency = 0;
     int32_t m_samples_until_recording_begins = 0;
 
     std::vector<s_playback_clip> m_playback_clips = {};         // List of all clips in the current playback
@@ -508,7 +509,8 @@ PyObject *start_recording_clip(PyObject *self, PyObject *args) {
     g_engine_state.m_metronome_sample = INT32_MAX;
 
     PaTime total_latency = input_device.m_suggested_latency + output_device.m_suggested_latency;
-    g_engine_state.m_samples_until_recording_begins = static_cast<int32_t>(total_latency * g_engine_state.m_sample_rate);
+    g_engine_state.m_recording_playback_latency = static_cast<int32_t>(total_latency * g_engine_state.m_sample_rate);
+    g_engine_state.m_samples_until_recording_begins = g_engine_state.m_recording_playback_latency;
 
     result = Pa_OpenStream(
         &g_engine_state.m_stream,
@@ -574,6 +576,19 @@ PyObject *stop_recording_clip(PyObject *self) {
     g_engine_state.m_recording = false;
     g_engine_state.m_recording_clip_id = -1;
     Py_RETURN_NONE;
+}
+
+PyObject *get_recorded_sample_count(PyObject *self) {
+    if (!g_engine_state.m_recording) {
+        PyErr_SetString(PyExc_Exception, "Not recording");
+        return nullptr;
+    }
+
+    // Take the playback sample index and subtract our recording latency
+    int32_t recorded_sample_count = std::max(
+        g_engine_state.m_playback_sample_index - g_engine_state.m_recording_playback_latency,
+        0);
+    return PyLong_FromLong(recorded_sample_count);
 }
 
 PyObject *get_latest_recorded_samples(PyObject *self, PyObject *args) {
