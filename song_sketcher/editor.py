@@ -480,11 +480,11 @@ class Editor:
         can_save_as = self._project is not None
         can_save = can_save_as and self._history_manager.has_unsaved_changes()
 
-        self._new_project_button.set_enabled(not self._is_playing)
-        self._load_project_button.set_enabled(not self._is_playing)
-        self._save_project_button.set_enabled(not self._is_playing and can_save)
-        self._save_project_as_button.set_enabled(not self._is_playing and can_save_as)
-        self._settings_button.set_enabled(not self._is_playing)
+        self._new_project_button.set_enabled(not self._is_playing, animate)
+        self._load_project_button.set_enabled(not self._is_playing, animate)
+        self._save_project_button.set_enabled(not self._is_playing and can_save, animate)
+        self._save_project_as_button.set_enabled(not self._is_playing and can_save_as, animate)
+        self._settings_button.set_enabled(not self._is_playing, animate)
 
         if self._project is not None:
             self._library.set_enabled(not self._is_playing)

@@ -1,13 +1,42 @@
 #vs
 
-#version 130
-
-varying vec2 xy;
+#version 330
 
 void main()
 {
-    xy = gl_Vertex.xy;
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    gl_Position = vec4(0.0);
+}
+
+#gs
+
+#version 330
+
+layout(points) in;
+layout(triangle_strip, max_vertices = 4) out;
+
+uniform mat4 mvp_matrix;
+
+uniform vec2 xy1;
+uniform vec2 xy2;
+
+out vec2 xy;
+
+void main()
+{
+    xy = xy1;
+    gl_Position = mvp_matrix * vec4(xy, 0.0, 1.0);
+    EmitVertex();
+    xy = vec2(xy2.x, xy1.y);
+    gl_Position = mvp_matrix * vec4(xy, 0.0, 1.0);
+    EmitVertex();
+    xy = vec2(xy1.x, xy2.y);
+    gl_Position = mvp_matrix * vec4(xy, 0.0, 1.0);
+    EmitVertex();
+    xy = xy2;
+    gl_Position = mvp_matrix * vec4(xy, 0.0, 1.0);
+    EmitVertex();
+
+    EndPrimitive();
 }
 
 #fs
@@ -24,7 +53,7 @@ uniform float border_thickness;
 uniform vec2 xy1;
 uniform vec2 xy2;
 
-varying vec2 xy;
+in vec2 xy;
 
 // Blends smoothly across a 1-pixel wide region around edge_distance, where < 0.5 indicates distance < edge_distance
 float smooth_edge(float distance, float edge_distance) {

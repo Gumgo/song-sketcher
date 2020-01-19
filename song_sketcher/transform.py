@@ -1,16 +1,18 @@
 from OpenGL.GL import *
 
+def get_current_transform():
+    return _transform_stack[-1]
+
 class Transform:
     def __init__(self, x = 0.0, y = 0.0):
         self.x = x
         self.y = y
 
     def __enter__(self):
-        glPushMatrix()
-        glMultMatrixf(self.get_opengl_matrix())
+        _transform_stack.append(_transform_stack[-1] * self)
 
     def __exit__(self, type, value, traceback):
-        glPopMatrix()
+        _transform_stack.pop()
 
     def copy(self):
         return Transform(self.x, self.y)
@@ -24,10 +26,4 @@ class Transform:
     def inverse(self):
         return Transform(-self.x, -self.y)
 
-    def get_opengl_matrix(self):
-        return [
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            self.x, self.y, 0.0, 1.0
-        ]
+_transform_stack = [Transform()]
