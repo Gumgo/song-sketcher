@@ -1,3 +1,6 @@
+import OpenGL
+OpenGL.ERROR_CHECKING = False # Enable this when modifying OpenGL code
+
 from OpenGL.GL import *
 import pygame
 from pygame.locals import *

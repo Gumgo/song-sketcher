@@ -1,6 +1,16 @@
 from OpenGL.GL import *
 
 class Shader:
+    class _Use:
+        def __init__(self, shader):
+            self.shader = shader
+
+        def __enter__(self):
+            glUseProgram(self.shader.program)
+
+        def __exit__(self, type, value, traceback):
+            glUseProgram(0)
+
     def __init__(self, filename):
         with open(filename, "r") as file:
             MODE_VS = 0
@@ -90,17 +100,7 @@ class Shader:
         glDeleteShader(self.fs)
 
     def use(self):
-        class Use:
-            def __init__(self, shader):
-                self.shader = shader
-
-            def __enter__(self):
-                glUseProgram(self.shader.program)
-
-            def __exit__(self, type, value, traceback):
-                glUseProgram(0)
-
-        return Use(self)
+        return self._Use(self)
 
     def attribute_loc(self, attribute_name):
         return self._attribute_locations[attribute_name]

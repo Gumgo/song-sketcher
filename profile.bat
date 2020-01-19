@@ -1,0 +1,1 @@
+python -m cProfile -s time main.py > profile_results.txt
