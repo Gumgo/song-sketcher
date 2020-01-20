@@ -29,7 +29,7 @@ class SaveProjectAsDialog:
         name_title.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
         name_title.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
-        options_layout.add_padding(points(12.0))
+        options_layout.add_padding(points(4.0))
 
         self._name = widget.InputWidget()
         options_layout.add_child(self._name)

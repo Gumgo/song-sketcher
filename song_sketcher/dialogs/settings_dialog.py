@@ -23,7 +23,7 @@ class SettingsDialog:
         options_layout = widget.GridLayoutWidget()
         layout.add_child(options_layout)
 
-        options_layout.set_column_size(1, points(12.0))
+        options_layout.set_column_size(1, points(4.0))
 
         input_device_title = widget.TextWidget()
         options_layout.add_child(0, 0, input_device_title, horizontal_placement = widget.HorizontalPlacement.RIGHT)

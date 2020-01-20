@@ -52,7 +52,7 @@ class EditClipDialog:
         name_title.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
         name_title.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
-        name_layout.add_padding(points(12.0))
+        name_layout.add_padding(points(4.0))
 
         self._name = widget.InputWidget()
         name_layout.add_child(self._name)
@@ -524,10 +524,10 @@ class WaveformWidget(widget.WidgetWithSize):
         START_SAMPLE_INDEX = 0
         END_SAMPLE_INDEX = 1
 
-    _BACKGROUND_COLOR = (0.25, 0.25, 0.25, 1.0)
-    _DISABLED_BACKGROUND_COLOR = drawing.darken_color(_BACKGROUND_COLOR, 0.5)
+    _BACKGROUND_COLOR = (0.5, 0.5, 0.5, 1.0)
+    _DISABLED_BACKGROUND_COLOR = constants.darken_color(_BACKGROUND_COLOR, 0.5)
     _WAVEFORM_COLOR = (0.25, 0.25, 1.0, 1.0)
-    _DISABLED_WAVEFORM_COLOR = drawing.darken_color(_WAVEFORM_COLOR, 0.5)
+    _DISABLED_WAVEFORM_COLOR = constants.darken_color(_WAVEFORM_COLOR, 0.5)
 
     def __init__(self):
         super().__init__()

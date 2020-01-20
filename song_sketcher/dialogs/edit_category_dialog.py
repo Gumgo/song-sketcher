@@ -31,7 +31,7 @@ class EditCategoryDialog:
         options_layout = widget.GridLayoutWidget()
         layout.add_child(options_layout)
 
-        options_layout.set_column_size(1, points(12.0))
+        options_layout.set_column_size(1, points(4.0))
 
         name_title = widget.TextWidget()
         options_layout.add_child(0, 0, name_title, horizontal_placement = widget.HorizontalPlacement.RIGHT)
@@ -146,7 +146,7 @@ class ColorPickerSquareWidget(widget.WidgetWithSize):
                 0.0,
                 self.width.value,
                 self.height.value,
-                drawing.rgba255(*self.color255),
+                constants.rgba255(*self.color255),
                 border_thickness = points(2.0),
                 border_color = self._border_color.value)
 

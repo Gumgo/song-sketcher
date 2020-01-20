@@ -25,10 +25,10 @@ def show_modal_dialog(stack_widget, layout_widget):
         _background_widget.color.value = (0.0, 0.0, 0.0, 0.0)
 
     dialog_background = widget.BackgroundWidget()
-    dialog_background.color.value = (0.75, 0.25, 0.4, 1.0)
+    dialog_background.color.value = constants.Ui.DIALOG_COLOR
     dialog_background.border_thickness.value = points(4.0)
-    dialog_background.border_color.value = (0.375, 0.125, 0.2, 1.0)
-    dialog_background.radius.value = inches(0.25)
+    dialog_background.border_color.value = constants.darken_color(constants.Ui.DIALOG_COLOR, 0.5)
+    dialog_background.radius.value = inches(0.125)
 
     outer_layout = widget.HStackedLayoutWidget()
     outer_layout.margin = inches(0.25)

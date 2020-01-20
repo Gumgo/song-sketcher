@@ -21,10 +21,7 @@ from song_sketcher import widget_manager
 class Constants:
     # Don't make this static because we can't initialize some values (e.g. points) until units are initialized
     def __init__(self):
-        self.ROOT_BACKGROUND_COLOR = drawing.rgba255(45, 53, 85)
-
         self.MENU_PADDING = points(12.0)
-        self.MENU_BACKGROUND_COLOR = drawing.rgba255(20, 24, 39)
 
         self.DIVIDER_SIZE = points(20.0)
 
@@ -42,7 +39,7 @@ class Editor:
 
         self._root_background = widget.BackgroundWidget()
         self._root_stack_widget.push_child(self._root_background)
-        self._root_background.color.value = self._constants.ROOT_BACKGROUND_COLOR
+        self._root_background.color.value = constants.Ui.PANEL_COLOR
 
         self._root_layout = widget.HStackedLayoutWidget()
         self._root_background.set_child(self._root_layout)
@@ -84,9 +81,9 @@ class Editor:
 
     def _build_file_menu_widget(self):
         background = widget.BackgroundWidget()
-        background.color.value = self._constants.MENU_BACKGROUND_COLOR
+        background.color.value = constants.Ui.MENU_COLOR
         background.border_thickness.value = points(2.0)
-        background.border_color.value = constants.Color.BLACK
+        background.border_color.value = constants.darken_color(constants.Ui.MENU_COLOR, 0.5)
 
         layout = widget.VStackedLayoutWidget()
         background.set_child(layout)
@@ -155,9 +152,9 @@ class Editor:
         timeline_library_divider = widget.RectangleWidget()
         timeline_library_layout.add_child(timeline_library_divider)
         timeline_library_divider.desired_height = self._constants.DIVIDER_SIZE
-        timeline_library_divider.color.value = self._constants.MENU_BACKGROUND_COLOR
+        timeline_library_divider.color.value = constants.Ui.MENU_COLOR
         timeline_library_divider.border_thickness.value = points(2.0)
-        timeline_library_divider.border_color.value = constants.Color.BLACK
+        timeline_library_divider.border_color.value = constants.darken_color(constants.Ui.MENU_COLOR, 0.5)
         timeline_library_divider.left_open = True
         timeline_library_divider.right_open = True
 
@@ -177,9 +174,9 @@ class Editor:
 
     def _build_edit_menu_widget(self, project_widgets):
         background = widget.BackgroundWidget()
-        background.color.value = self._constants.MENU_BACKGROUND_COLOR
+        background.color.value = constants.Ui.MENU_COLOR
         background.border_thickness.value = points(2.0)
-        background.border_color.value = constants.Color.BLACK
+        background.border_color.value = constants.darken_color(constants.Ui.MENU_COLOR, 0.5)
 
         layout = widget.VStackedLayoutWidget()
         background.set_child(layout)

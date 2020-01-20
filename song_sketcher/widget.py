@@ -775,8 +775,8 @@ class ScrollbarWidget(WidgetWithSize):
             self._state = new_state
             color = {
                 self._State.DEFAULT: self._COLOR_INNER,
-                self._State.HOVER: drawing.lighten_color(self._COLOR_INNER, 0.5),
-                self._State.PRESSED: drawing.darken_color(self._COLOR_INNER, 0.5)
+                self._State.HOVER: constants.lighten_color(self._COLOR_INNER, 0.5),
+                self._State.PRESSED: constants.darken_color(self._COLOR_INNER, 0.5)
             }[self._state]
             self._color_inner.transition().target(color).duration(0.125).ease_out()
 
@@ -998,10 +998,10 @@ class ButtonWidget(WidgetWithSize):
             self._state = new_state
             color = {
                 self._State.DEFAULT: self.color,
-                self._State.HOVER: drawing.lighten_color(self.color, 0.5),
+                self._State.HOVER: constants.lighten_color(self.color, 0.5),
                 self._State.PRESSED: self.color,
-                self._State.PRESSED_HOVER: drawing.darken_color(self.color, 0.5),
-                self._State.DISABLED: drawing.darken_color(self.color, 0.5)
+                self._State.PRESSED_HOVER: constants.darken_color(self.color, 0.5),
+                self._State.DISABLED: constants.darken_color(self.color, 0.5)
             }[self._state]
             if animate:
                 self._color.transition().target(color).duration(0.125).ease_out()
@@ -1013,7 +1013,7 @@ class TextButtonWidget(ButtonWidget):
         super().__init__()
         self.desired_width = None
         self.desired_height = points(20.0)
-        self.color = (0.5, 0.5, 0.5, 1.0)
+        self.color = constants.Ui.BUTTON_COLOR
         self.text = ""
         self.font_name = "arial"
         self.text_size = points(12.0)
@@ -1053,7 +1053,7 @@ class IconButtonWidget(ButtonWidget):
         super().__init__()
         self.desired_width = inches(1.0)
         self.desired_height = inches(1.0)
-        self.color = constants.Ui.ICON_BUTTON_COLOR
+        self.color = constants.Ui.BUTTON_COLOR
         self.icon_name = None
 
     def get_desired_size(self):
@@ -1128,14 +1128,14 @@ class DropdownWidget(WidgetWithSize):
         PRESSED = 2
         PRESSED_HOVER = 3
 
-    _COLOR_DEFAULT = (0.9, 0.9, 0.9, 1.0)
-    _COLOR_HOVER = drawing.lighten_color(_COLOR_DEFAULT, 1.0)
-    _COLOR_PRESSED = drawing.darken_color(_COLOR_DEFAULT, 0.25)
+    _COLOR_DEFAULT = constants.Ui.DROPDOWN_COLOR
+    _COLOR_HOVER = constants.lighten_color(_COLOR_DEFAULT, 1.0)
+    _COLOR_PRESSED = constants.darken_color(_COLOR_DEFAULT, 0.25)
 
-    _COLOR_OPTION_STRIPE_A = (0.8, 0.8, 0.8, 1.0)
-    _COLOR_OPTION_STRIPE_B = (0.9, 0.9, 0.9, 1.0)
-    _COLOR_OPTION_HOVER = (0.6, 0.6, 1.0, 1.0)
-    _COLOR_OPTION_PRESSED = (0.3, 0.3, 0.5, 1.0)
+    _COLOR_OPTION_STRIPE_A = constants.darken_color(constants.Ui.DROPDOWN_COLOR, 0.1)
+    _COLOR_OPTION_STRIPE_B = constants.Ui.DROPDOWN_COLOR
+    _COLOR_OPTION_HOVER = constants.Ui.DROPDOWN_HIGHLIGHT_COLOR
+    _COLOR_OPTION_PRESSED = constants.darken_color(constants.Ui.DROPDOWN_HIGHLIGHT_COLOR, 0.5)
 
     def __init__(self):
         super().__init__()
@@ -1383,10 +1383,10 @@ class SpinnerWidget(WidgetWithSize):
         HOVER = 1
         PRESSED = 2
 
-    _COLOR_INNER = constants.Color.WHITE
-    _COLOR_OUTER_DEFAULT = (0.5, 0.5, 0.5, 1.0)
-    _COLOR_OUTER_HOVER = drawing.lighten_color(_COLOR_OUTER_DEFAULT, 0.5)
-    _COLOR_OUTER_BACKGROUND = (0.25, 0.25, 0.25, 1.0)
+    _COLOR_INNER = constants.Ui.SPINNER_INNER_COLOR
+    _COLOR_OUTER_DEFAULT = constants.Ui.SPINNER_OUTER_COLOR
+    _COLOR_OUTER_HOVER = constants.lighten_color(constants.Ui.SPINNER_OUTER_COLOR, 0.5)
+    _COLOR_OUTER_BACKGROUND = constants.darken_color(constants.Ui.SPINNER_OUTER_COLOR, 0.5)
     _RATIO_START = 0.125
     _RATIO_END = 0.875
 
@@ -1510,8 +1510,8 @@ class SpinnerWidget(WidgetWithSize):
             self._outer_ratio.transition().target(ratio).duration(0.125).ease_out()
 
 class InputWidget(WidgetWithSize):
-    _COLOR = (0.9, 0.9, 0.9, 1.0)
-    _COLOR_DISABLED = drawing.darken_color(_COLOR, 0.5)
+    _COLOR = constants.Ui.INPUT_COLOR
+    _COLOR_DISABLED = constants.darken_color(_COLOR, 0.5)
     _CURSOR_PHASE_DURATION = 2.0 / 3.0
 
     def __init__(self):

@@ -267,16 +267,9 @@ class _WidgetManager:
             if self._focused_widget is not None:
                 self._send_event_to_widget(key_release_event, self._focused_widget, True)
         elif pygame_event.type == pygame.MOUSEMOTION:
-            self._last_mouse_position = (pygame_event.pos[0], self._display_size[1] - pygame_event.pos[1] - 1)
-            self._send_mouse_enter_leave_events()
-
-            mouse_move_event = widget_event.MouseEvent(
-                widget_event.MouseEventType.MOVE,
-                None,
-                self._last_mouse_position[0],
-                self._last_mouse_position[1])
-            self._send_event_to_captured_widget_and_other(mouse_move_event, self._widget_under_mouse, False)
+            self._send_mouse_move_event(pygame_event, False)
         elif pygame_event.type == pygame.MOUSEBUTTONDOWN:
+            self._send_mouse_move_event(pygame_event, True)
             button = self._get_mouse_button_from_pygame_event(pygame_event)
 
             if self._double_click_button is button and self._is_a_ancestor_of_b(self._double_click_widget, self._widget_under_mouse):
@@ -309,6 +302,7 @@ class _WidgetManager:
                     self._double_click_widget = widget
                     self._double_click_timer = timer.Timer(self._cancel_double_click_timer, _DOUBLE_CLICK_DURATION)
         elif pygame_event.type == pygame.MOUSEBUTTONUP:
+            self._send_mouse_move_event(pygame_event, True)
             self._cancel_all_long_press_timers()
 
             mouse_release_event = widget_event.MouseEvent(
@@ -317,6 +311,21 @@ class _WidgetManager:
                 self._last_mouse_position[0],
                 self._last_mouse_position[1])
             self._send_event_to_captured_widget_or_other(mouse_release_event, self._widget_under_mouse, True)
+
+    def _send_mouse_move_event(self, pygame_event, ignore_if_no_motion):
+        new_mouse_position = (pygame_event.pos[0], self._display_size[1] - pygame_event.pos[1] - 1)
+        if ignore_if_no_motion and new_mouse_position == self._last_mouse_position:
+            return
+
+        self._last_mouse_position = new_mouse_position
+        self._send_mouse_enter_leave_events()
+
+        mouse_move_event = widget_event.MouseEvent(
+            widget_event.MouseEventType.MOVE,
+            None,
+            self._last_mouse_position[0],
+            self._last_mouse_position[1])
+        self._send_event_to_captured_widget_and_other(mouse_move_event, self._widget_under_mouse, False)
 
     def _send_mouse_enter_leave_events(self):
         # Widgets have moved - determine which widget the mouse lies in

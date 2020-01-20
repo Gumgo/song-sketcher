@@ -409,7 +409,7 @@ def _get_measure_width(clip):
     return inches(1.5) * measures + _get_measure_padding() * (measures - 1)
 
 def _get_measure_color(category):
-    return drawing.rgba255(*category.color) if category is not None else (0.0, 0.0, 0.0, 0.0)
+    return constants.rgba255(*category.color) if category is not None else (0.0, 0.0, 0.0, 0.0)
 
 def _get_track_width():
     return inches(1.5)
@@ -459,9 +459,9 @@ class TrackWidget(widget.AbsoluteLayoutWidget):
         self.background = widget.RectangleWidget()
         self.background.desired_width = self.desired_width
         self.background.desired_height = self.desired_height
-        self.background.color.value = self._COLOR
-        self.background.border_thickness.value = points(1.0)
-        self.background.border_color.value = constants.Color.BLACK
+        self.background.color.value = constants.Ui.TRACK_COLOR
+        self.background.border_thickness.value = points(4.0)
+        self.background.border_color.value = constants.darken_color(constants.Ui.TRACK_COLOR, 0.75)
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 

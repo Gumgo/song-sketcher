@@ -92,10 +92,10 @@ class Library:
         # Backup current positions and colors for animation
         prev_layout_height = self._categories_layout.height.value
         prev_category_positions = dict((c, (w.x.value, w.y.value)) for c, w in self._category_widgets.items())
-        prev_category_colors = dict((c, w.background.color.value) for c, w in self._category_widgets.items())
+        prev_category_colors = dict((c, w.color.value) for c, w in self._category_widgets.items())
         prev_add_category_position = (self._add_category_widget.x.value, self._add_category_widget.y.value)
         prev_clip_positions = dict((c, (w.x.value, w.y.value)) for c, w in self._clip_widgets.items())
-        prev_clip_colors = dict((c, w.background.color.value) for c, w in self._clip_widgets.items())
+        prev_clip_colors = dict((c, w.color.value) for c, w in self._clip_widgets.items())
         prev_add_clip_positions = dict((c, (w.x.value, w.y.value)) for c, w in self._add_clip_widgets.items())
 
         # Add new categories
@@ -123,7 +123,7 @@ class Library:
         # Layout categories in order
         for y, category in enumerate(self._project.clip_categories):
             category_widget = self._category_widgets[category]
-            category_widget.background.color.value = drawing.rgba255(*category.color)
+            category_widget.color.value = constants.rgba255(*category.color)
             category_widget.name.text = category.name
             self._categories_layout.add_child(category_widget)
             self._categories_layout.add_padding(self._padding)
@@ -132,7 +132,7 @@ class Library:
             for x, clip_id in enumerate(category.clip_ids):
                 clip = self._project.get_clip_by_id(clip_id)
                 clip_widget = self._clip_widgets[clip]
-                clip_widget.background.color.value = drawing.rgba255(*category.color)
+                clip_widget.color.value = constants.rgba255(*category.color)
                 clip_widget.name.text = clip.name
                 self._clips_layout.add_child(y * 2 + 1, x * 2 + 1, clip_widget)
                 self._clips_layout.set_column_size(x * 2 + 2, self._padding)
@@ -160,9 +160,9 @@ class Library:
             widget.y.transition().target(new_y).duration(0.125).ease_out()
 
         def animate_color(widget, old_color):
-            new_color = widget.background.color.value
-            widget.background.color.value = old_color
-            widget.background.color.transition().target(new_color).duration(0.125).ease_out()
+            new_color = widget.color.value
+            widget.color.value = old_color
+            widget.color.transition().target(new_color).duration(0.125).ease_out()
 
         # Revert categories and clips to their original positions and colors and animate them
         for category, widget in self._category_widgets.items():
@@ -491,9 +491,9 @@ class CategoryWidget(widget.AbsoluteLayoutWidget):
         self.background = widget.RectangleWidget()
         self.background.desired_width = self.desired_width
         self.background.desired_height = self.desired_height
-        self.background.color.value = drawing.rgba255(*self.category.color)
-        self.background.border_thickness.value = points(1.0)
-        self.background.border_color.value = constants.Color.BLACK
+        self.background.color.value = constants.Ui.CATEGORY_COLOR
+        self.background.border_thickness.value = points(4.0)
+        self.background.border_color.value = constants.rgba255(*self.category.color)
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 
@@ -504,6 +504,10 @@ class CategoryWidget(widget.AbsoluteLayoutWidget):
         self.name.horizontal_alignment = drawing.HorizontalAlignment.CENTER
         self.name.vertical_alignment = drawing.VerticalAlignment.MIDDLE
         self.add_child(self.name)
+
+    @property
+    def color(self):
+        return self.background.border_color
 
     def process_event(self, event):
         if not self.enabled:
@@ -536,7 +540,7 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.background = widget.RectangleWidget()
         self.background.desired_width = self.desired_width
         self.background.desired_height = self.desired_height
-        self.background.color.value = drawing.rgba255(*self.category.color)
+        self.background.color.value = constants.rgba255(*self.category.color)
         self.background.border_thickness.value = points(1.0)
         self.background.border_color.value = self.SELECTED_COLOR if is_selected else self.UNSELECTED_COLOR
         self.background.radius.value = points(4.0)
@@ -549,6 +553,10 @@ class ClipWidget(widget.AbsoluteLayoutWidget):
         self.name.horizontal_alignment = drawing.HorizontalAlignment.CENTER
         self.name.vertical_alignment = drawing.VerticalAlignment.MIDDLE
         self.add_child(self.name)
+
+    @property
+    def color(self):
+        return self.background.color
 
     def process_event(self, event):
         if not self.enabled:
