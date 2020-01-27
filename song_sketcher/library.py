@@ -288,7 +288,6 @@ class Library:
                     clip_ids = set(category.clip_ids)
                     deleted_clips = [x for x in old_clips if x.id in clip_ids]
                     for clip in deleted_clips:
-                        print(("DELETE C", clip.engine_clip))
                         engine.delete_clip(clip.engine_clip)
 
             do()
@@ -320,7 +319,6 @@ class Library:
 
             def destroy(was_undone):
                 if was_undone:
-                    print(("DELETE D", new_clip.engine_clip))
                     engine.delete_clip(new_clip.engine_clip)
 
             do()
@@ -386,11 +384,9 @@ class Library:
                 if did_engine_clip_change:
                     if was_undone:
                         # We undid the edit, so delete the re-recorded engine clip
-                        print(("DELETE 11", edited_clip.engine_clip))
                         engine.delete_clip(edited_clip.engine_clip)
                     else:
                         # We're holding the last reference to the original engine clip, so delete it
-                        print(("DELETE 22", old_engine_clip))
                         engine.delete_clip(old_engine_clip)
 
             do()
@@ -442,7 +438,6 @@ class Library:
 
             def destroy(was_undone):
                 if not was_undone:
-                    print(("DELETE AAA", clip.engine_clip))
                     engine.delete_clip(clip.engine_clip)
 
             do()

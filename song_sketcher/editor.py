@@ -397,7 +397,6 @@ class Editor:
                             measure_index -= 1
                         playback_start_sample_index = round(measure_index * samples_per_measure + clip.start_sample_index)
                         gain = clip.gain * clip.category.gain * track.gain
-                        print(("ADD", track, clip, clip.engine_clip))
                         engine.playback_builder_add_clip(
                             clip.engine_clip,
                             clip.start_sample_index,

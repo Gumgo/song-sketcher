@@ -219,7 +219,6 @@ class EditClipDialog:
                 return
 
             if self._engine_clip is not None:
-                print(("DELETE B", self._engine_clip))
                 engine.delete_clip(self._engine_clip)
 
             if s.recording_metronome_enabled:
@@ -420,7 +419,6 @@ class EditClipDialog:
             # We would have already returned if both the engine clip and the clip were None
             assert self._clip is not None
             edited_clip.engine_clip = self._clip.engine_clip
-        print(("EDIT", edited_clip.engine_clip))
 
         self._destroy_func()
         self._on_accept_func(edited_clip)
@@ -445,7 +443,6 @@ class EditClipDialog:
             self._playback_updater = None
 
         if self._engine_clip is not None:
-            print(("DELETE A", self._engine_clip))
             engine.delete_clip(self._engine_clip)
 
         self._destroy_func()
