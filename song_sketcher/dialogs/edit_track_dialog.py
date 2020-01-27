@@ -5,7 +5,7 @@ from song_sketcher.units import *
 from song_sketcher import widget
 
 class EditTrackDialog:
-    # on_accept_func takes name as argument
+    # on_accept_func takes name, gain as arguments
     def __init__(self, stack_widget, track, on_accept_func, on_delete_func):
         self._stack_widget = stack_widget
         self._on_accept_func = on_accept_func
@@ -36,10 +36,22 @@ class EditTrackDialog:
         name_title.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
         name_title.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
+        name_gain_layout = widget.HStackedLayoutWidget()
+        options_layout.add_child(0, 2, name_gain_layout)
+
         self._name = widget.InputWidget()
-        options_layout.add_child(0, 2, self._name)
+        name_gain_layout.add_child(self._name)
         if track is not None:
             self._name.text = track.name
+
+        name_gain_layout.add_padding(points(4.0))
+
+        self._gain_spinner = widget.SpinnerWidget()
+        name_gain_layout.add_child(self._gain_spinner)
+        self._gain_spinner.min_value = 0.0
+        self._gain_spinner.max_value = 1.0
+        self._gain_spinner.value = 1.0 if track is None else track.gain
+        self._gain_spinner.decimals = 2
 
         layout.add_padding(points(12.0))
 
@@ -82,7 +94,7 @@ class EditTrackDialog:
             return
 
         self._destroy_func()
-        self._on_accept_func(name)
+        self._on_accept_func(name, self._gain_spinner.value)
 
     def _delete(self):
         self._destroy_func()

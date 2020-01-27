@@ -1382,11 +1382,13 @@ class SpinnerWidget(WidgetWithSize):
         DEFAULT = 0
         HOVER = 1
         PRESSED = 2
+        DISABLED = 3
 
     _COLOR_INNER = constants.Ui.SPINNER_INNER_COLOR
     _COLOR_OUTER_DEFAULT = constants.Ui.SPINNER_OUTER_COLOR
     _COLOR_OUTER_HOVER = constants.lighten_color(constants.Ui.SPINNER_OUTER_COLOR, 0.5)
     _COLOR_OUTER_BACKGROUND = constants.darken_color(constants.Ui.SPINNER_OUTER_COLOR, 0.5)
+    _COLOR_OUTER_DISABLED = constants.darken_color(constants.Ui.SPINNER_OUTER_COLOR, 0.5)
     _RATIO_START = 0.125
     _RATIO_END = 0.875
 
@@ -1401,6 +1403,7 @@ class SpinnerWidget(WidgetWithSize):
         self.font_name = "arial"
         self.text_size = points(12.0)
         self.on_value_changed_func = None
+        self._enabled = True
         self._pressed = False
         self._state = self._State.DEFAULT
         self._outer_thickness = points(4.0)
@@ -1408,14 +1411,28 @@ class SpinnerWidget(WidgetWithSize):
         self._color_outer = parameter.AnimatableParameter(self._COLOR_OUTER_DEFAULT)
         self._outer_ratio = parameter.AnimatableParameter(0.0)
 
+    @property
+    def enabled(self):
+        return self._enabled
+
+    def set_enabled(self, enabled, animate = True):
+        if enabled != self._enabled:
+            self._enabled = enabled
+            if not enabled:
+                self._pressed = False
+                self.release_capture()
+                self.release_focus()
+            self._update_color_and_size_state(animate)
+
     def process_event(self, event):
         result = False
         if isinstance(event, widget_event.MouseEvent):
             if event.button is widget_event.MouseButton.LEFT:
                 if event.event_type is widget_event.MouseEventType.PRESS:
-                    self._pressed = True
-                    self.capture()
-                    self.focus()
+                    if self.enabled:
+                        self._pressed = True
+                        self.capture()
+                        self.focus()
                     result = True
                 elif event.event_type is widget_event.MouseEventType.RELEASE:
                     self.release_capture()
@@ -1487,8 +1504,10 @@ class SpinnerWidget(WidgetWithSize):
         else:
             draw()
 
-    def _update_color_and_size_state(self):
-        if self._pressed:
+    def _update_color_and_size_state(self, animate = True):
+        if not self._enabled:
+            new_state = self._State.DISABLED
+        elif self._pressed:
             new_state = self._State.PRESSED
         else:
             new_state = self._State.HOVER if self.is_under_mouse else self._State.DEFAULT
@@ -1498,16 +1517,24 @@ class SpinnerWidget(WidgetWithSize):
             color = {
                 self._State.DEFAULT: self._COLOR_OUTER_DEFAULT,
                 self._State.HOVER: self._COLOR_OUTER_HOVER,
-                self._State.PRESSED: self._COLOR_OUTER_HOVER
+                self._State.PRESSED: self._COLOR_OUTER_HOVER,
+                self._State.DISABLED: self._COLOR_OUTER_DISABLED
             }[self._state]
-            self._color_outer.transition().target(color).duration(0.125).ease_out()
+            if animate:
+                self._color_outer.transition().target(color).duration(0.125).ease_out()
+            else:
+                self._color_outer.value = color
 
             ratio = {
                 self._State.DEFAULT: 0.0,
                 self._State.HOVER: 0.0,
-                self._State.PRESSED: 1.0
+                self._State.PRESSED: 1.0,
+                self._State.DISABLED: 0.0
             }[self._state]
-            self._outer_ratio.transition().target(ratio).duration(0.125).ease_out()
+            if animate:
+                self._outer_ratio.transition().target(ratio).duration(0.125).ease_out()
+            else:
+                self._outer_ratio.value = ratio
 
 class InputWidget(WidgetWithSize):
     _COLOR = constants.Ui.INPUT_COLOR

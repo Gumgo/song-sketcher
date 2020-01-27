@@ -375,6 +375,12 @@ class Editor:
                     None)
                 return
 
+            soloed_tracks = set(x for x in self._project.tracks if x.soloed and not x.muted)
+            if len(soloed_tracks) > 0:
+                active_tracks = [x for x in self._project.tracks if x in soloed_tracks]
+            else:
+                active_tracks = [x for x in self._project.tracks if not x.muted]
+
             # Build the playback clip
             engine.playback_builder_begin()
 
@@ -382,7 +388,7 @@ class Editor:
                 self._project.sample_rate,
                 self._project.beats_per_minute,
                 self._project.beats_per_measure)
-            for track in self._project.tracks:
+            for track in active_tracks:
                 for i, clip_id in enumerate(track.measure_clip_ids):
                     if clip_id is not None:
                         clip = self._project.get_clip_by_id(clip_id)
@@ -390,11 +396,14 @@ class Editor:
                         if clip.has_intro:
                             measure_index -= 1
                         playback_start_sample_index = round(measure_index * samples_per_measure + clip.start_sample_index)
+                        gain = clip.gain * clip.category.gain * track.gain
+                        print(("ADD", track, clip, clip.engine_clip))
                         engine.playback_builder_add_clip(
                             clip.engine_clip,
                             clip.start_sample_index,
                             clip.end_sample_index,
-                            playback_start_sample_index)
+                            playback_start_sample_index,
+                            gain)
 
             engine.playback_builder_finalize()
 

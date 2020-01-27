@@ -145,7 +145,11 @@ class Timeline:
         # Add new tracks
         for track in self._project.tracks:
             if track not in self._track_widgets:
-                self._track_widgets[track] = TrackWidget(track, lambda track = track: self._edit_track(track))
+                self._track_widgets[track] = TrackWidget(
+                    track,
+                    lambda track = track: self._edit_track(track),
+                    lambda track = track: self._mute_changed(track),
+                    lambda track = track: self._solo_changed(track))
 
             # Add new measures and update existing ones
             for i in range(song_length_measures):
@@ -248,9 +252,10 @@ class Timeline:
         self._update_time_bar()
 
     def _add_track(self):
-        def on_accept(name):
+        def on_accept(name, gain):
             new_track = project.Track()
             new_track.name = name
+            new_track.gain = gain
 
             def do():
                 self._project.tracks.append(new_track)
@@ -271,18 +276,21 @@ class Timeline:
         edit_track_dialog.EditTrackDialog(self._root_stack_widget, None, on_accept, None)
 
     def _edit_track(self, track):
-        def on_accept(name):
-            if name == track.name:
+        def on_accept(name, gain):
+            if name == track.name and gain == track.gain:
                 return # Nothing changed
 
             old_name = track.name
+            old_gain = track.gain
 
             def do():
                 track.name = name
+                track.gain = gain
                 self._layout_widgets()
 
             def undo():
                 track.name = old_name
+                track.gain = old_gain
                 self._layout_widgets()
 
             do()
@@ -313,6 +321,45 @@ class Timeline:
             self._history_manager.add_entry(entry)
 
         edit_track_dialog.EditTrackDialog(self._root_stack_widget, track, on_accept, on_delete)
+
+
+    def _mute_changed(self, track):
+        muted = self._track_widgets[track].muted.checked
+        old_muted = track.muted
+
+        def do():
+            track.muted = muted
+            self._track_widgets[track].muted.set_checked(track.muted)
+
+        def undo():
+            track.muted = old_muted
+            self._track_widgets[track].muted.set_checked(track.muted)
+
+        do()
+
+        entry = history_manager.Entry()
+        entry.undo_func = undo
+        entry.redo_func = do
+        self._history_manager.add_entry(entry)
+
+    def _solo_changed(self, track):
+        soloed = self._track_widgets[track].soloed.checked
+        old_soloed = track.soloed
+
+        def do():
+            track.soloed = soloed
+            self._track_widgets[track].soloed.set_checked(track.soloed)
+
+        def undo():
+            track.soloed = old_soloed
+            self._track_widgets[track].soloed.set_checked(track.soloed)
+
+        do()
+
+        entry = history_manager.Entry()
+        entry.undo_func = undo
+        entry.redo_func = do
+        self._history_manager.add_entry(entry)
 
     def _add_or_remove_measure(self, track, index):
         if index < len(track.measure_clip_ids):
@@ -447,11 +494,11 @@ class AddTrackWidget(widget.AbsoluteLayoutWidget):
 class TrackWidget(widget.AbsoluteLayoutWidget):
     _COLOR = (0.75, 0.75, 0.75, 1.0)
 
-    def __init__(self, track, on_double_click_func):
+    def __init__(self, track, on_double_click_func, on_mute_func, on_solo_func):
         super().__init__()
         self.track = track
         self.on_double_click_func = on_double_click_func
-        self.enabled = True
+        self._enabled = True
 
         self.desired_width = _get_track_width()
         self.desired_height = _get_track_height()
@@ -465,13 +512,60 @@ class TrackWidget(widget.AbsoluteLayoutWidget):
         self.background.radius.value = points(4.0)
         self.add_child(self.background)
 
+        name_controls_layout = widget.HStackedLayoutWidget()
+        name_controls_layout.desired_width = self.desired_width
+        name_controls_layout.desired_height = self.desired_height
+        name_controls_layout.margin = points(8.0)
+        self.add_child(name_controls_layout)
+
         self.name = widget.TextWidget()
         self.name.text = self.track.name
-        self.name.x.value = self.desired_width * 0.5
-        self.name.y.value = self.desired_height * 0.5
         self.name.horizontal_alignment = drawing.HorizontalAlignment.CENTER
         self.name.vertical_alignment = drawing.VerticalAlignment.MIDDLE
-        self.add_child(self.name)
+        name_controls_layout.add_child(
+            self.name,
+            weight = 1.0,
+            horizontal_placement = widget.HorizontalPlacement.CENTER,
+            vertical_placement = widget.VerticalPlacement.MIDDLE)
+
+        name_controls_layout.add_padding(points(4.0))
+
+        controls_layout = widget.GridLayoutWidget()
+        controls_layout.set_row_size(1, points(4.0))
+        controls_layout.set_column_size(1, points(4.0))
+        name_controls_layout.add_child(controls_layout, vertical_placement = widget.VerticalPlacement.MIDDLE)
+
+        self.muted = widget.CheckboxWidget()
+        self.muted.set_checked(track.muted, animate = False)
+        self.muted.action_func = on_mute_func
+        controls_layout.add_child(0, 0, self.muted)
+
+        muted_text = widget.TextWidget()
+        muted_text.text = "M"
+        muted_text.horizontal_alignment = drawing.HorizontalAlignment.LEFT
+        muted_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
+        controls_layout.add_child(0, 2, muted_text, horizontal_placement = widget.HorizontalPlacement.LEFT)
+
+        self.soloed = widget.CheckboxWidget()
+        self.soloed.set_checked(track.soloed, animate = False)
+        self.soloed.action_func = on_solo_func
+        controls_layout.add_child(2, 0, self.soloed)
+
+        soloed_text = widget.TextWidget()
+        soloed_text.text = "S"
+        soloed_text.horizontal_alignment = drawing.HorizontalAlignment.LEFT
+        soloed_text.vertical_alignment = drawing.VerticalAlignment.MIDDLE
+        controls_layout.add_child(2, 2, soloed_text, horizontal_placement = widget.HorizontalPlacement.LEFT)
+
+    @property
+    def enabled(self):
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, enabled):
+        self._enabled = enabled
+        self.muted.set_enabled(enabled)
+        self.soloed.set_enabled(enabled)
 
     def process_event(self, event):
         if not self.enabled:

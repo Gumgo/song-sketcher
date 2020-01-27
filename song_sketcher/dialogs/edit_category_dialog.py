@@ -8,7 +8,7 @@ from song_sketcher import widget
 from song_sketcher import widget_event
 
 class EditCategoryDialog:
-    # on_accept_func takes name, color as arguments
+    # on_accept_func takes name, color, gain as arguments
     def __init__(self, stack_widget, category, on_accept_func, on_delete_func):
         self._stack_widget = stack_widget
         self._on_accept_func = on_accept_func
@@ -39,10 +39,22 @@ class EditCategoryDialog:
         name_title.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
         name_title.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
+        name_gain_layout = widget.HStackedLayoutWidget()
+        options_layout.add_child(0, 2, name_gain_layout)
+
         self._name = widget.InputWidget()
-        options_layout.add_child(0, 2, self._name)
+        name_gain_layout.add_child(self._name)
         if category is not None:
             self._name.text = category.name
+
+        name_gain_layout.add_padding(points(4.0))
+
+        self._gain_spinner = widget.SpinnerWidget()
+        name_gain_layout.add_child(self._gain_spinner)
+        self._gain_spinner.min_value = 0.0
+        self._gain_spinner.max_value = 1.0
+        self._gain_spinner.value = 1.0 if category is None else category.gain
+        self._gain_spinner.decimals = 2
 
         options_layout.set_row_size(1, points(12.0))
 
@@ -97,7 +109,7 @@ class EditCategoryDialog:
             return
 
         self._destroy_func()
-        self._on_accept_func(name, self._color_picker.selected_color)
+        self._on_accept_func(name, self._color_picker.selected_color, self._gain_spinner.value)
 
     def _delete(self):
         self._destroy_func()

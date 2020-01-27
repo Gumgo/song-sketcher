@@ -32,6 +32,7 @@ class Clip:
         self.measure_count = 0          # The number of measures the clip spans NOT including the intro and outro
         self.has_intro = False          # Whether the clip has an intro measure
         self.has_outro = False          # Whether the clip has an outro measure
+        self.gain = 1.0                 # Gain of the clip, from 0-1
         self.engine_clip = None         # Audio clip data stored in the engine
 
         self.category = None            # Used for quick access to the category
@@ -40,11 +41,15 @@ class ClipCategory:
     def __init__(self):
         self.name = ""                  # Display name for the category
         self.color = (255, 255, 255)    # Display color for clips in this category
+        self.gain = 1.0                 # Gain of the category, applied to all clips in the category
         self.clip_ids = []              # List of clip IDs in this category
 
 class Track:
     def __init__(self):
         self.name = ""                  # Display name for the track
+        self.gain = 1.0                 # Gain of the track
+        self.muted = False              # Whether the track is muted
+        self.soloed = False             # Whether the track is soloed
         self.measure_clip_ids = []      # For each measure in the song, a clip ID, or None if no clip has been placed
 
 class Project:
@@ -74,7 +79,8 @@ class Project:
                 "sample_count": clip.sample_count,
                 "start_sample_index": clip.start_sample_index,
                 "end_sample_index": clip.end_sample_index,
-                "measure_count": clip.measure_count
+                "measure_count": clip.measure_count,
+                "gain": clip.gain
             })
         project["clips"] = clips
 
@@ -83,6 +89,7 @@ class Project:
             clip_categories.append({
                 "name": clip_category.name,
                 "color": clip_category.color,
+                "gain": clip_category.gain,
                 "clip_ids": clip_category.clip_ids
             })
         project["clip_categories"] = clip_categories
@@ -91,6 +98,9 @@ class Project:
         for track in self.tracks:
             tracks.append({
                 "name": track.name,
+                "gain": track.gain,
+                "muted": track.muted,
+                "soloed": track.soloed,
                 "measure_clip_ids": track.measure_clip_ids
             })
         project["tracks"] = tracks
@@ -120,6 +130,7 @@ class Project:
             clip.start_sample_index = int(loaded_clip["start_sample_index"])
             clip.end_sample_index = int(loaded_clip["end_sample_index"])
             clip.measure_count = int(loaded_clip["measure_count"])
+            clip.gain = float(loaded_clip["gain"])
             self.clips.append(clip)
 
         self.clip_categories = []
@@ -127,6 +138,7 @@ class Project:
             clip_category = ClipCategory()
             clip_category.name = loaded_clip_category["name"]
             clip_category.color = tuple(int(x) for x in loaded_clip_category["color"])
+            clip_category.gain = float(loaded_clip_category["gain"])
             clip_category.clip_ids = [int(x) for x in loaded_clip_category["clip_ids"]]
             for clip_id in clip_category.clip_ids:
                 self.get_clip_by_id(clip_id).category = clip_category
@@ -136,6 +148,9 @@ class Project:
         for loaded_track in project["tracks"]:
             track = Track()
             track.name = loaded_track["name"]
+            track.gain = float(loaded_track["gain"])
+            track.muted = loaded_track["muted"]
+            track.soloed = loaded_track["soloed"]
             track.measure_clip_ids = [None if x is None else int(x) for x in loaded_track["measure_clip_ids"]]
             self.tracks.append(track)
 

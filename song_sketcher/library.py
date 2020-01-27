@@ -191,10 +191,11 @@ class Library:
         self._select_clip(self._selected_clip_id)
 
     def _add_category(self):
-        def on_accept(name, color):
+        def on_accept(name, color, gain):
             new_category = project.ClipCategory()
             new_category.name = name
             new_category.color = color
+            new_category.gain = gain
 
             def do():
                 self._project.clip_categories.append(new_category)
@@ -214,22 +215,25 @@ class Library:
         edit_category_dialog.EditCategoryDialog(self._root_stack_widget, None, on_accept, None)
 
     def _edit_category(self, category):
-        def on_accept(name, color):
-            if name == category.name and color == category.color:
+        def on_accept(name, color, gain):
+            if name == category.name and color == category.color and gain == category.gain:
                 return # Nothing changed
 
             old_name = category.name
             old_color = category.color
+            old_gain = category.gain
 
             def do():
                 category.name = name
                 category.color = color
+                category.gain = gain
                 self._layout_widgets()
                 self._update_tracks_func()
 
             def undo():
                 category.name = old_name
                 category.color = old_color
+                category.gain = old_gain
                 self._layout_widgets()
                 self._update_tracks_func()
 
@@ -284,6 +288,7 @@ class Library:
                     clip_ids = set(category.clip_ids)
                     deleted_clips = [x for x in old_clips if x.id in clip_ids]
                     for clip in deleted_clips:
+                        print(("DELETE C", clip.engine_clip))
                         engine.delete_clip(clip.engine_clip)
 
             do()
@@ -315,6 +320,7 @@ class Library:
 
             def destroy(was_undone):
                 if was_undone:
+                    print(("DELETE D", new_clip.engine_clip))
                     engine.delete_clip(new_clip.engine_clip)
 
             do()
@@ -337,6 +343,7 @@ class Library:
                 and edited_clip.end_sample_index == clip.end_sample_index
                 and edited_clip.has_intro == clip.has_intro
                 and edited_clip.has_outro == clip.has_outro
+                and edited_clip.gain == clip.gain
                 and edited_clip.engine_clip == clip.engine_clip):
                 return # Nothing changed
 
@@ -346,9 +353,10 @@ class Library:
             old_end_sample_index = clip.end_sample_index
             old_has_intro = clip.has_intro
             old_has_outro = clip.has_outro
+            old_gain = clip.gain
             old_engine_clip = clip.engine_clip
 
-            did_engine_clip_change = (edited_clip.engine_clip == clip.engine_clip)
+            did_engine_clip_change = (edited_clip.engine_clip != clip.engine_clip)
 
             def do():
                 clip.name = edited_clip.name
@@ -357,6 +365,7 @@ class Library:
                 clip.end_sample_index = edited_clip.end_sample_index
                 clip.has_intro = edited_clip.has_intro
                 clip.has_outro = edited_clip.has_outro
+                clip.gain = edited_clip.gain
                 clip.engine_clip = edited_clip.engine_clip
                 self._layout_widgets()
                 self._update_tracks_func()
@@ -368,6 +377,7 @@ class Library:
                 clip.end_sample_index = old_end_sample_index
                 clip.has_intro = old_has_intro
                 clip.has_outro = old_has_outro
+                clip.gain = old_gain
                 clip.engine_clip = old_engine_clip
                 self._layout_widgets()
                 self._update_tracks_func()
@@ -376,9 +386,11 @@ class Library:
                 if did_engine_clip_change:
                     if was_undone:
                         # We undid the edit, so delete the re-recorded engine clip
+                        print(("DELETE 11", edited_clip.engine_clip))
                         engine.delete_clip(edited_clip.engine_clip)
                     else:
                         # We're holding the last reference to the original engine clip, so delete it
+                        print(("DELETE 22", old_engine_clip))
                         engine.delete_clip(old_engine_clip)
 
             do()
@@ -430,6 +442,7 @@ class Library:
 
             def destroy(was_undone):
                 if not was_undone:
+                    print(("DELETE AAA", clip.engine_clip))
                     engine.delete_clip(clip.engine_clip)
 
             do()

@@ -61,6 +61,7 @@ struct s_playback_clip {
     int32_t m_start_sample_index = 0;
     int32_t m_end_sample_index = 0;
     int32_t m_playback_start_sample_index = 0;
+    float m_gain = 0.0f;
 
     s_playback_clip *m_prev_active_playback_clip = nullptr;
     s_playback_clip *m_next_active_playback_clip = nullptr;
@@ -701,7 +702,8 @@ PyObject *playback_builder_add_clip(PyObject *self, PyObject *args) {
     int32_t start_sample_index;
     int32_t end_sample_index;
     int32_t playback_start_sample_index;
-    if (!PyArg_ParseTuple(args, "iiii", &clip_id, &start_sample_index, &end_sample_index, &playback_start_sample_index)) {
+    double gain;
+    if (!PyArg_ParseTuple(args, "iiiid", &clip_id, &start_sample_index, &end_sample_index, &playback_start_sample_index, &gain)) {
         return nullptr;
     }
 
@@ -722,6 +724,7 @@ PyObject *playback_builder_add_clip(PyObject *self, PyObject *args) {
     playback_clip.m_start_sample_index = start_sample_index;
     playback_clip.m_end_sample_index = end_sample_index;
     playback_clip.m_playback_start_sample_index = playback_start_sample_index;
+    playback_clip.m_gain = static_cast<float>(gain);
     g_engine_state.m_playback_clips.push_back(playback_clip);
 
     Py_RETURN_NONE;
@@ -1014,7 +1017,7 @@ int playback_stream_main(
                 int32_t clip_start_sample =
                     current_sample_index - playback_clip->m_playback_start_sample_index + playback_clip->m_start_sample_index;
                 for (int32_t i = 0; i < iteration_sample_count; ++i) {
-                    output_buffer[output_buffer_offset + i] += clip.m_samples[clip_start_sample + i];
+                    output_buffer[output_buffer_offset + i] += clip.m_samples[clip_start_sample + i] * playback_clip->m_gain;
                 }
 
                 playback_clip = playback_clip->m_next_active_playback_clip;

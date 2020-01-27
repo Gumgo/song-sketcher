@@ -43,21 +43,30 @@ class EditClipDialog:
 
         layout.add_padding(points(12.0))
 
-        name_layout = widget.HStackedLayoutWidget()
-        layout.add_child(name_layout, horizontal_placement = widget.HorizontalPlacement.CENTER)
+        name_gain_layout = widget.HStackedLayoutWidget()
+        layout.add_child(name_gain_layout, horizontal_placement = widget.HorizontalPlacement.CENTER)
 
         name_title = widget.TextWidget()
-        name_layout.add_child(name_title, horizontal_placement = widget.HorizontalPlacement.RIGHT)
+        name_gain_layout.add_child(name_title, horizontal_placement = widget.HorizontalPlacement.RIGHT)
         name_title.text = "Name:"
         name_title.horizontal_alignment = drawing.HorizontalAlignment.RIGHT
         name_title.vertical_alignment = drawing.VerticalAlignment.MIDDLE
 
-        name_layout.add_padding(points(4.0))
+        name_gain_layout.add_padding(points(4.0))
 
         self._name = widget.InputWidget()
-        name_layout.add_child(self._name)
+        name_gain_layout.add_child(self._name)
         if clip is not None:
             self._name.text = clip.name
+
+        name_gain_layout.add_padding(points(4.0))
+
+        self._gain_spinner = widget.SpinnerWidget()
+        name_gain_layout.add_child(self._gain_spinner)
+        self._gain_spinner.min_value = 0.0
+        self._gain_spinner.max_value = 1.0
+        self._gain_spinner.value = 1.0 if clip is None else clip.gain
+        self._gain_spinner.decimals = 2
 
         layout.add_padding(points(12.0))
 
@@ -210,6 +219,7 @@ class EditClipDialog:
                 return
 
             if self._engine_clip is not None:
+                print(("DELETE B", self._engine_clip))
                 engine.delete_clip(self._engine_clip)
 
             if s.recording_metronome_enabled:
@@ -234,6 +244,7 @@ class EditClipDialog:
             self._reject_button.set_enabled(False)
             self._intro_checkbox.set_enabled(False)
             self._outro_checkbox.set_enabled(False)
+            self._gain_spinner.set_enabled(False)
             self._update_time_bar()
 
             self._waveform_viewer.enabled = False
@@ -252,6 +263,7 @@ class EditClipDialog:
             self._reject_button.set_enabled(True)
             self._intro_checkbox.set_enabled(True)
             self._outro_checkbox.set_enabled(True)
+            self._gain_spinner.set_enabled(True)
             self._update_time_bar()
 
             self._waveform_viewer.set_waveform_samples(engine.get_clip_samples(self._engine_clip, _MAX_WAVEFORM_SAMPLES))
@@ -283,8 +295,9 @@ class EditClipDialog:
 
             start_sample_index = self._waveform_viewer.start_sample_index
             end_sample_index = self._waveform_viewer.end_sample_index
+            gain = self._gain_spinner.value
             engine.playback_builder_begin()
-            engine.playback_builder_add_clip(engine_clip, start_sample_index, end_sample_index, start_sample_index)
+            engine.playback_builder_add_clip(engine_clip, start_sample_index, end_sample_index, start_sample_index, gain)
             engine.playback_builder_finalize()
 
             if s.recording_metronome_enabled:
@@ -363,6 +376,7 @@ class EditClipDialog:
         measure_count = self._calculate_measure_count(sample_count)
         has_intro = self._intro_checkbox.checked
         has_outro = self._outro_checkbox.checked
+        gain = self._gain_spinner.value
 
         if sample_count == 0:
             modal_dialog.show_simple_modal_dialog(
@@ -399,12 +413,14 @@ class EditClipDialog:
         edited_clip.measure_count = measure_count
         edited_clip.has_intro = has_intro
         edited_clip.has_outro = has_outro
+        edited_clip.gain = gain
         if self._engine_clip is not None:
             edited_clip.engine_clip = self._engine_clip
         else:
             # We would have already returned if both the engine clip and the clip were None
             assert self._clip is not None
             edited_clip.engine_clip = self._clip.engine_clip
+        print(("EDIT", edited_clip.engine_clip))
 
         self._destroy_func()
         self._on_accept_func(edited_clip)
@@ -429,6 +445,7 @@ class EditClipDialog:
             self._playback_updater = None
 
         if self._engine_clip is not None:
+            print(("DELETE A", self._engine_clip))
             engine.delete_clip(self._engine_clip)
 
         self._destroy_func()

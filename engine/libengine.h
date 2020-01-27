@@ -78,7 +78,7 @@ PyObject *get_clip_samples(PyObject *self, PyObject *args);
 PyObject *playback_builder_begin(PyObject *self);
 
 // Adds a clip to the current playback track
-// Arguments: clip_id, start_sample_index, end_sample_index, playback_start_sample_index
+// Arguments: clip_id, start_sample_index, end_sample_index, playback_start_sample_index, gain
 PyObject *playback_builder_add_clip(PyObject *self, PyObject *args);
 
 // Finalizes the playback builder, allowing for playback to start
